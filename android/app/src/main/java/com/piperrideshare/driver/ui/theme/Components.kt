@@ -2,7 +2,6 @@ package com.piperrideshare.driver.ui.theme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
@@ -22,7 +21,7 @@ import androidx.compose.ui.unit.dp
 enum class ValidationState {
     NONE,
     REQUIRED,
-    INVALID
+    INVALID,
 }
 
 // Equivalent to iOS ButtonPrimary_Loading
@@ -31,18 +30,18 @@ fun ButtonPrimaryLoading(
     title: String,
     isLoading: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Button(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         enabled = !isLoading,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(8.dp),
     ) {
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = MaterialTheme.colorScheme.onPrimary
+                color = MaterialTheme.colorScheme.onPrimary,
             )
         } else {
             Text(text = title)
@@ -60,13 +59,13 @@ fun InputTextField(
     hint: String = "",
     validationState: ValidationState = ValidationState.NONE,
     onEditingStarted: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
         )
         Spacer(modifier = Modifier.height(4.dp))
         OutlinedTextField(
@@ -76,13 +75,20 @@ fun InputTextField(
             modifier = Modifier.fillMaxWidth(),
             isError = validationState != ValidationState.NONE,
             shape = RoundedCornerShape(8.dp),
-            singleLine = true
+            singleLine = true,
         )
         if (hint.isNotEmpty()) {
             Text(
                 text = hint,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (validationState == ValidationState.REQUIRED) AppColors.Red else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                color =
+                    if (validationState ==
+                        ValidationState.REQUIRED
+                    ) {
+                        AppColors.Red
+                    } else {
+                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    },
             )
         }
     }
@@ -98,14 +104,14 @@ fun InputPassword(
     hint: String = "",
     validationState: ValidationState = ValidationState.NONE,
     onEditingStarted: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
         )
         Spacer(modifier = Modifier.height(4.dp))
         OutlinedTextField(
@@ -121,16 +127,23 @@ fun InputPassword(
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     Icon(
                         imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                        contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
                     )
                 }
-            }
+            },
         )
         if (hint.isNotEmpty()) {
             Text(
                 text = hint,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (validationState == ValidationState.REQUIRED) AppColors.Red else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                color =
+                    if (validationState ==
+                        ValidationState.REQUIRED
+                    ) {
+                        AppColors.Red
+                    } else {
+                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    },
             )
         }
     }
@@ -141,14 +154,15 @@ fun InputPassword(
 fun ButtonPill(
     title: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(24.dp) // Pill shape
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(24.dp), // Pill shape
     ) {
         Text(text = title)
     }
@@ -163,69 +177,72 @@ fun RideRequestCard(
     earnings: Double,
     onAccept: () -> Unit,
     onReject: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(12.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        shape = RoundedCornerShape(12.dp),
     ) {
         Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth()
+            modifier =
+                Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth(),
         ) {
             Text(
                 text = "Incoming Ride Request",
                 style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             Spacer(modifier = Modifier.height(16.dp))
             // Progress bar placeholder
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(20.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color.LightGray)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.LightGray),
             ) {
                 // Implement progress animation here
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Pickup: $pickupAddress",
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "$${String.format("%.2f", earnings / 100.0)}",
                 style = MaterialTheme.typography.displayLarge,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             Row(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "$eta min • ",
-                    style = MaterialTheme.typography.displayMedium
+                    style = MaterialTheme.typography.displayMedium,
                 )
                 Text(
                     text = String.format("%.1f miles", distance),
-                    style = MaterialTheme.typography.displayMedium
+                    style = MaterialTheme.typography.displayMedium,
                 )
             }
             Spacer(modifier = Modifier.height(24.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Button(
                     onClick = onReject,
                     modifier = Modifier.weight(1f).padding(end = 8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.Red),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
                 ) {
                     Text("Reject")
                 }
@@ -233,11 +250,11 @@ fun RideRequestCard(
                     onClick = onAccept,
                     modifier = Modifier.weight(1f).padding(start = 8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.Green),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
                 ) {
                     Text("Accept")
                 }
             }
         }
     }
-} 
+}

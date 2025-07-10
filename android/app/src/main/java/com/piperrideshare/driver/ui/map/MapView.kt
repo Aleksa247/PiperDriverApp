@@ -6,7 +6,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.viewinterop.AndroidView
 
 /**
  * MapView is temporarily disabled due to missing Mapbox Maps SDK dependencies.
@@ -15,11 +14,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 @Composable
 fun MapView(
     initialCameraPosition: Any? = null,
-    onMapReady: (Any?) -> Unit = {}
+    onMapReady: (Any?) -> Unit = {},
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Text("Map View - Coming Soon")
     }
@@ -30,6 +29,9 @@ fun enableLocationComponent() {
     // TODO: Implement when Mapbox Maps SDK is added
 }
 
-fun flyToLocation(latitude: Double, longitude: Double) {
+fun flyToLocation(
+    latitude: Double,
+    longitude: Double,
+) {
     // TODO: Implement when Mapbox Maps SDK is added
 }

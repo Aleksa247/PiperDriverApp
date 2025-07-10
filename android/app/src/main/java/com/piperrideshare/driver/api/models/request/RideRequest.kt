@@ -14,5 +14,5 @@ data class RideRequest(
     val dropoffAddress: String,
     val estimatedFare: Double,
     val estimatedDistance: Double,
-    val estimatedDuration: Int // in minutes
+    val estimatedDuration: Int, // in minutes
 )

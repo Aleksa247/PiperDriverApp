@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.location.Location
 import android.os.Binder
@@ -18,12 +17,10 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class LocationService : Service() {
-
     private val binder = LocationBinder()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
@@ -31,7 +28,7 @@ class LocationService : Service() {
     companion object {
         private const val NOTIFICATION_ID = 12345
         private const val CHANNEL_ID = "location_service_channel"
-        
+
         val serviceRunning = MutableStateFlow(false)
         val currentLocation = MutableStateFlow<Location?>(null)
     }
@@ -46,16 +43,18 @@ class LocationService : Service() {
         createNotificationChannel()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         startForeground(NOTIFICATION_ID, createNotification())
         serviceRunning.value = true
         startLocationUpdates()
         return START_STICKY
     }
 
-    override fun onBind(intent: Intent?): IBinder {
-        return binder
-    }
+    override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onDestroy() {
         super.onDestroy()
@@ -64,27 +63,30 @@ class LocationService : Service() {
     }
 
     private fun setupLocationCallback() {
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) {
-                locationResult.lastLocation?.let { location ->
-                    currentLocation.value = location
+        locationCallback =
+            object : LocationCallback() {
+                override fun onLocationResult(locationResult: LocationResult) {
+                    locationResult.lastLocation?.let { location ->
+                        currentLocation.value = location
+                    }
                 }
             }
-        }
     }
 
     private fun startLocationUpdates() {
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
-            .setWaitForAccurateLocation(false)
-            .setMinUpdateIntervalMillis(5000)
-            .setMaxUpdateDelayMillis(10000)
-            .build()
+        val locationRequest =
+            LocationRequest
+                .Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
+                .setWaitForAccurateLocation(false)
+                .setMinUpdateIntervalMillis(5000)
+                .setMaxUpdateDelayMillis(10000)
+                .build()
 
         try {
             fusedLocationClient.requestLocationUpdates(
                 locationRequest,
                 locationCallback,
-                mainLooper
+                mainLooper,
             )
         } catch (e: SecurityException) {
             // Handle permission not granted
@@ -96,24 +98,25 @@ class LocationService : Service() {
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Location Service",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Used for location tracking"
-        }
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID,
+                "Location Service",
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Used for location tracking"
+            }
         notificationManager.createNotificationChannel(channel)
     }
 
-    private fun createNotification(): Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+    private fun createNotification(): Notification =
+        NotificationCompat
+            .Builder(this, CHANNEL_ID)
             .setContentTitle("Driver App")
             .setContentText("Location tracking active")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation) // Use system icon instead
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
-    }
 
     inner class LocationBinder : Binder() {
         fun getService(): LocationService = this@LocationService

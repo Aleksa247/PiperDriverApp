@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
             DriverAppTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.background,
                 ) {
                     val navController = rememberNavController()
                     PiperDriverNavHost(navController = navController)

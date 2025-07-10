@@ -5,9 +5,9 @@ import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.piperrideshare.driver.ui.screens.splash.SplashScreen
-import com.piperrideshare.driver.ui.screens.login.LoginScreen
 import com.piperrideshare.driver.ui.screens.home.HomeScreen
+import com.piperrideshare.driver.ui.screens.login.LoginScreen
+import com.piperrideshare.driver.ui.screens.splash.SplashScreen
 
 object NavRoutes {
     const val SPLASH = "splash"
@@ -25,24 +25,24 @@ fun PiperDriverNavHost(navController: NavHostController) {
 
     NavHost(
         navController = navController,
-        startDestination = NavRoutes.SPLASH
+        startDestination = NavRoutes.SPLASH,
     ) {
         composable(NavRoutes.SPLASH) {
             SplashScreen(
                 onNavigateToLogin = actions.navigateToLogin,
-                onNavigateToHome = actions.navigateToHome
+                onNavigateToHome = actions.navigateToHome,
             )
         }
 
         composable(NavRoutes.LOGIN) {
             LoginScreen(
-                onLoginSuccess = actions.navigateToHome
+                onLoginSuccess = actions.navigateToHome,
             )
         }
 
         composable(NavRoutes.HOME) {
             HomeScreen(
-                onNavigateToRideDetail = actions.navigateToRideDetail
+                onNavigateToRideDetail = actions.navigateToRideDetail,
             )
         }
 
@@ -50,7 +50,9 @@ fun PiperDriverNavHost(navController: NavHostController) {
     }
 }
 
-class NavActions(private val navController: NavHostController) {
+class NavActions(
+    private val navController: NavHostController,
+) {
     val navigateToLogin: () -> Unit = {
         navController.navigate(NavRoutes.LOGIN) {
             popUpTo(NavRoutes.SPLASH) { inclusive = true }
