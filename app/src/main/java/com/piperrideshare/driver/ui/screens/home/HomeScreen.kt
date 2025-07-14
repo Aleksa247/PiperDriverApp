@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -21,6 +23,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -33,6 +36,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     onNavigateToRideDetail: (String) -> Unit,
+    onLogout: () -> Unit,
     viewModel: WebSocketViewModel = hiltViewModel(),
 ) {
     var isOnline by remember { mutableStateOf(false) }
@@ -76,6 +80,14 @@ fun HomeScreen(
         }
     }
 
+    fun handleLogout() {
+        coroutineScope.launch {
+            viewModel.clearSession()
+            viewModel.disconnect()
+            onLogout()
+        }
+    }
+
     if (pendingOnlineRequest) {
         PermissionHandler(
             permissions = listOf(Manifest.permission.ACCESS_FINE_LOCATION),
@@ -91,10 +103,9 @@ fun HomeScreen(
     }
 
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -120,10 +131,9 @@ fun HomeScreen(
         if (isOnline) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Status: Online", style = MaterialTheme.typography.bodyLarge)
@@ -141,5 +151,17 @@ fun HomeScreen(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        PiperDriverButton(
+            text = "Logout",
+            modifier = Modifier.wrapContentWidth(),
+            onClick = { handleLogout() },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Red,
+                contentColor = Color.White,
+            )
+        )
     }
 }

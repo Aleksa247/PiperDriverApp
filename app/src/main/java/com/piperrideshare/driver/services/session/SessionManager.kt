@@ -2,8 +2,8 @@ package com.piperrideshare.driver.services.session
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.piperrideshare.driver.data.UserPreferences
 import com.piperrideshare.driver.utils.Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -38,5 +38,6 @@ class SessionManager
 
         override suspend fun clearSession() {
             context.dataStore.edit { it.clear() }
+            UserPreferences(context).clear()
         }
     }

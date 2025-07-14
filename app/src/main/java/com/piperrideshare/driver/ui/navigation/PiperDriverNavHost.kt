@@ -42,10 +42,9 @@ fun PiperDriverNavHost(navController: NavHostController) {
         composable(NavRoutes.HOME) {
             HomeScreen(
                 onNavigateToRideDetail = actions.navigateToRideDetail,
+                onLogout = actions.navigateToLoginAfterLogout,
             )
         }
-
-        // Additional routes
     }
 }
 
@@ -58,6 +57,12 @@ class NavActions(
         }
     }
 
+    val navigateToLoginAfterLogout: () -> Unit = {
+        navController.navigate(NavRoutes.LOGIN) {
+            popUpTo(0) { inclusive = true }
+        }
+    }
+
     val navigateToHome: () -> Unit = {
         navController.navigate(NavRoutes.HOME) {
             popUpTo(NavRoutes.LOGIN) { inclusive = true }
@@ -67,6 +72,4 @@ class NavActions(
     val navigateToRideDetail: (String) -> Unit = { rideId ->
         navController.navigate("ride_detail/$rideId")
     }
-
-    // Additional navigation actions
 }
