@@ -2,7 +2,9 @@ package com.piperrideshare.driver.ui.screens.home
 
 import android.Manifest
 import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +17,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,7 +30,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mapbox.maps.MapView
 import com.piperrideshare.driver.ui.components.PiperDriverButton
+import com.piperrideshare.driver.ui.map.MapView as ComposeMapView
+import com.piperrideshare.driver.ui.map.enableLocationComponent
+import com.piperrideshare.driver.ui.map.flyToLocation
 import com.piperrideshare.driver.ui.viewModel.WebSocketViewModel
 import com.piperrideshare.driver.utils.LocationTracker
 import com.piperrideshare.driver.utils.PermissionHandler
@@ -48,6 +55,19 @@ fun HomeScreen(
 
     val rideRequest by viewModel.rideRequest.collectAsState()
     val driverModel by viewModel.driverModel.collectAsState()
+
+    var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
+
+    LaunchedEffect(currentLocation, mapViewInstance) {
+        val mapView = mapViewInstance
+        val location = currentLocation
+        if (mapView != null && location != null) {
+            flyToLocation(
+                mapView = mapView,
+                location = location
+            )
+        }
+    }
 
     fun goOnlineWithLocation() {
         coroutineScope.launch {
@@ -120,11 +140,28 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        PiperDriverButton(
-            text = if (isOnline) "Go Offline" else "Go Online",
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            onClick = { toggleOnline() },
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PiperDriverButton(
+                text = if (isOnline) "Go Offline" else "Go Online",
+                modifier = Modifier.weight(1f),
+                onClick = { toggleOnline() },
+            )
+
+            PiperDriverButton(
+                text = "Logout",
+                modifier = Modifier.wrapContentWidth(),
+                onClick = { handleLogout() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Red,
+                    contentColor = Color.White,
+                )
+            )
+        }
+
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -150,18 +187,20 @@ fun HomeScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        PiperDriverButton(
-            text = "Logout",
-            modifier = Modifier.wrapContentWidth(),
-            onClick = { handleLogout() },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Red,
-                contentColor = Color.White,
+        if (isOnline) {
+            ComposeMapView(
+                onMapReady = { mapView ->
+                    mapViewInstance = mapView
+                    enableLocationComponent(mapView)
+                    currentLocation?.let {
+                        flyToLocation(mapView, location = it)
+                    }
+                }
             )
-        )
+        }
     }
 }

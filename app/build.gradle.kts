@@ -1,5 +1,7 @@
 @file:Suppress("UnstableApiUsage", "DEPRECATION")
 
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -11,6 +13,11 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint") version "13.0.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
 }
+
+val localProperties = Properties().apply {
+    load(rootProject.file("local.properties").inputStream())
+}
+val mapboxToken = localProperties["MAPBOX_ACCESS_TOKEN"] as String
 
 android {
     namespace = "com.piperrideshare.driver"
@@ -24,10 +31,11 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary = true
-        }
+        vectorDrawables.useSupportLibrary = true
+
         buildConfigField("String", "BASE_URL", "\"piper-main-app.fly.dev\"")
+
+        resValue("string", "mapbox_access_token", "\"$mapboxToken\"")
     }
 
     buildTypes {
@@ -67,6 +75,7 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
     kotlinOptions {
         freeCompilerArgs = listOf("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
     }
