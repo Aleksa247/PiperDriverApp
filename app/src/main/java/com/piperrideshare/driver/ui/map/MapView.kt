@@ -1,6 +1,8 @@
 package com.piperrideshare.driver.ui.map
 
+import android.content.Context
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -15,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +30,8 @@ import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.locationcomponent.location
+import com.piperrideshare.driver.utils.LocationTracker
+import kotlinx.coroutines.launch
 
 // Simple marker state tracking
 private var hasPickupMarker = false
@@ -51,6 +57,7 @@ fun MapView(
     onMapReady: (MapView) -> Unit = {},
 ) {
     var mapView by remember { mutableStateOf<MapView?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
@@ -62,7 +69,7 @@ fun MapView(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                         )
 
-                    getMapboxMap().loadStyleUri(Style.MAPBOX_STREETS) {
+                    mapboxMap.loadStyleUri(Style.MAPBOX_STREETS) {
                         mapView = this@apply
                         onMapReady(this@apply)
                     }
@@ -81,8 +88,8 @@ fun MapView(
             IconButton(
                 onClick = {
                     mapView?.let {
-                        val currentZoom = it.getMapboxMap().cameraState.zoom
-                        it.getMapboxMap().setCamera(
+                        val currentZoom = it.mapboxMap.cameraState.zoom
+                        it.mapboxMap.setCamera(
                             CameraOptions
                                 .Builder()
                                 .zoom(currentZoom + 1)
@@ -101,8 +108,8 @@ fun MapView(
             IconButton(
                 onClick = {
                     mapView?.let {
-                        val currentZoom = it.getMapboxMap().cameraState.zoom
-                        it.getMapboxMap().setCamera(
+                        val currentZoom = it.mapboxMap.cameraState.zoom
+                        it.mapboxMap.setCamera(
                             CameraOptions
                                 .Builder()
                                 .zoom(currentZoom - 1)
@@ -114,6 +121,29 @@ fun MapView(
                 Icon(
                     imageVector = Icons.Default.Remove,
                     contentDescription = "Zoom Out",
+                    tint = Color.White,
+                )
+            }
+
+            IconButton(
+                onClick = {
+                    coroutineScope.launch {
+                        val safeMapView = mapView ?: return@launch
+                        forceRefreshLocation(
+                            context = safeMapView.context,
+                            mapView = safeMapView,
+                            onLocationRefreshed = { latLng ->
+                                latLng?.let { (lat, lon) ->
+                                    flyToLocation(safeMapView, latitude = lat, longitude = lon)
+                                }
+                            }
+                        )
+                    }
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MyLocation,
+                    contentDescription = "Refresh Location",
                     tint = Color.White,
                 )
             }
@@ -152,5 +182,29 @@ fun flyToLocation(
             .center(Point.fromLngLat(lon, lat))
             .zoom(15.0)
             .build()
-    mapView.getMapboxMap().setCamera(cameraOptions)
+    mapView.mapboxMap.setCamera(cameraOptions)
+}
+
+/**
+ * Force refreshes the user's location.
+ *
+ * Clears the location cache and gets a new location, useful to avoid "too close" errors.
+ */
+suspend fun forceRefreshLocation(
+    context: Context,
+    mapView: MapView,
+    onLocationRefreshed: (location: Pair<Double, Double>?) -> Unit = {}
+) {
+    val locationTracker = LocationTracker(context)
+    locationTracker.clearLocationCache()
+
+    val newLocation = locationTracker.getCurrentLocation()
+    if (newLocation != null) {
+        Toast.makeText(context, "Location refreshed", Toast.LENGTH_SHORT).show()
+        onLocationRefreshed(newLocation)
+        flyToLocation(mapView, location = newLocation)
+    } else {
+        Toast.makeText(context, "Failed to get new location", Toast.LENGTH_SHORT).show()
+        onLocationRefreshed(null)
+    }
 }
