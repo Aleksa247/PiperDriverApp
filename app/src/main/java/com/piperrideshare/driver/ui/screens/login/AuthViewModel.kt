@@ -31,8 +31,20 @@ class AuthViewModel
             viewModelScope.launch {
                 _isLoading.value = true
                 try {
+                    // @Thomas - BREAKPOINT HERE: About to make API call to login endpoint
+                    // This will show in logcat when the actual HTTP request is made
+                    println("🌐 API CALL: Making login request to /api/drivers/login")
+                    println("📧 Email: $email")
+                    println("🔑 Device ID: $deviceId")
+
+                    // Perform actual API login
                     val result = authRepository.login(email, password, deviceId)
+
+                    // @Thomas - BREAKPOINT HERE: API response received
+                    // Check logcat for HTTP response details
                     if (result.isSuccess) {
+                        println("✅ LOGIN SUCCESS: API call successful")
+                        // Save authentication info to session on successful login
                         result.getOrNull()?.let { response ->
                             sessionManager.saveAuthInfo(
                                 token = response.token,
@@ -40,9 +52,13 @@ class AuthViewModel
                                 name = response.name,
                             )
                         }
+                    } else {
+                        println("❌ LOGIN FAILED: API call failed - ${result.exceptionOrNull()?.message}")
                     }
                     _loginResult.value = result
                 } catch (e: Exception) {
+                    // @Thomas - BREAKPOINT HERE: Exception occurred during login
+                    println("💥 LOGIN EXCEPTION: ${e.message}")
                     _loginResult.value = Result.failure(e)
                 } finally {
                     _isLoading.value = false

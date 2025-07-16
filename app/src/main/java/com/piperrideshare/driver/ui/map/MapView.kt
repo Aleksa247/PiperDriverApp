@@ -27,10 +27,28 @@ import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.locationcomponent.location
 
+// Simple marker state tracking
+private var hasPickupMarker = false
+
+fun addPickupMarker(
+    mapView: MapView,
+    latitude: Double,
+    longitude: Double,
+) {
+    // For now, just fly to the pickup location
+    // @Thomas - Add proper marker when annotation plugin is available
+    flyToLocation(mapView, latitude = latitude, longitude = longitude)
+    hasPickupMarker = true
+}
+
+fun clearPickupMarker() {
+    hasPickupMarker = false
+}
+
 @Composable
 fun MapView(
     modifier: Modifier = Modifier,
-    onMapReady: (MapView) -> Unit = {}
+    onMapReady: (MapView) -> Unit = {},
 ) {
     var mapView by remember { mutableStateOf<MapView?>(null) }
 
@@ -38,61 +56,65 @@ fun MapView(
         AndroidView(
             factory = {
                 MapView(it).apply {
-                    layoutParams = ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
+                    layoutParams =
+                        ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                        )
 
-                    mapboxMap.loadStyleUri(Style.MAPBOX_STREETS) {
+                    getMapboxMap().loadStyleUri(Style.MAPBOX_STREETS) {
                         mapView = this@apply
                         onMapReady(this@apply)
                     }
                 }
             },
-            modifier = Modifier.matchParentSize()
+            modifier = Modifier.matchParentSize(),
         )
 
         Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .background(Color.Black.copy(alpha = 0.5f)),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .background(Color.Black.copy(alpha = 0.5f)),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             IconButton(
                 onClick = {
                     mapView?.let {
-                        val currentZoom = it.mapboxMap.cameraState.zoom
-                        it.mapboxMap.setCamera(
-                            CameraOptions.Builder()
+                        val currentZoom = it.getMapboxMap().cameraState.zoom
+                        it.getMapboxMap().setCamera(
+                            CameraOptions
+                                .Builder()
                                 .zoom(currentZoom + 1)
-                                .build()
+                                .build(),
                         )
                     }
-                }
+                },
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Zoom In",
-                    tint = Color.White
+                    tint = Color.White,
                 )
             }
 
             IconButton(
                 onClick = {
                     mapView?.let {
-                        val currentZoom = it.mapboxMap.cameraState.zoom
-                        it.mapboxMap.setCamera(
-                            CameraOptions.Builder()
+                        val currentZoom = it.getMapboxMap().cameraState.zoom
+                        it.getMapboxMap().setCamera(
+                            CameraOptions
+                                .Builder()
                                 .zoom(currentZoom - 1)
-                                .build()
+                                .build(),
                         )
                     }
-                }
+                },
             ) {
                 Icon(
                     imageVector = Icons.Default.Remove,
                     contentDescription = "Zoom Out",
-                    tint = Color.White
+                    tint = Color.White,
                 )
             }
         }
@@ -118,15 +140,17 @@ fun flyToLocation(
     mapView: MapView,
     latitude: Double? = null,
     longitude: Double? = null,
-    location: Pair<Double, Double>? = null
+    location: Pair<Double, Double>? = null,
 ) {
     val (lat, lon) = location ?: (latitude to longitude)
 
     if (lat == null || lon == null) return
 
-    val cameraOptions = CameraOptions.Builder()
-        .center(Point.fromLngLat(lon, lat))
-        .zoom(15.0)
-        .build()
-    mapView.mapboxMap.setCamera(cameraOptions)
+    val cameraOptions =
+        CameraOptions
+            .Builder()
+            .center(Point.fromLngLat(lon, lat))
+            .zoom(15.0)
+            .build()
+    mapView.getMapboxMap().setCamera(cameraOptions)
 }

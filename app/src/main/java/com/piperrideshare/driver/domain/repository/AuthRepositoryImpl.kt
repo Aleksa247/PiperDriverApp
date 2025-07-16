@@ -17,9 +17,25 @@ class AuthRepositoryImpl
             deviceId: String,
         ): Result<AuthResponse> =
             try {
+                // @Thomas - BREAKPOINT HERE: About to make HTTP request to login endpoint
+                // This is where the actual API call happens
+                println("🚀 HTTP REQUEST: Calling api.login() with LoginRequest")
+                println("📤 Request payload: email=$email, deviceId=$deviceId")
+
                 val response = api.login(LoginRequest(email, password, deviceId))
+
+                // @Thomas - BREAKPOINT HERE: HTTP response received successfully
+                println("📥 HTTP RESPONSE: Login successful")
+                println("🔑 Token: ${response.token}")
+                println("👤 User ID: ${response.userId}")
+                println("📝 Name: ${response.name}")
+
                 Result.success(response)
             } catch (e: Exception) {
+                // @Thomas - BREAKPOINT HERE: HTTP request failed
+                println("💥 HTTP ERROR: Login request failed")
+                println("❌ Error: ${e.message}")
+                println("📋 Exception type: ${e.javaClass.simpleName}")
                 Result.failure(e)
             }
     }
