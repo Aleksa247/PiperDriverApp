@@ -12,5 +12,5 @@ data class DriverState(
     val currentRideRequest: RideRequest? = null,
     val availableBalance: Double = 0.0,
     val pendingBalance: Double = 0.0,
-    val rating: Double = 0.0
+    val rating: Double = 0.0,
 )

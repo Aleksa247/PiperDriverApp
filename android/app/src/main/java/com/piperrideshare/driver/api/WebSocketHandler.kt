@@ -1,4 +1,3 @@
 package com.piperrideshare.driver.api
 
-class WebSocketHandler {
-}
+class WebSocketHandler

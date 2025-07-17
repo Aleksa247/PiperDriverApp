@@ -12,18 +12,18 @@ import kotlinx.coroutines.delay
 @Composable
 fun SplashScreen(
     onNavigateToLogin: () -> Unit,
-    onNavigateToHome: () -> Unit
+    onNavigateToHome: () -> Unit,
 ) {
     LaunchedEffect(key1 = true) {
         delay(2000) // 2 seconds delay
         // For now, always navigate to home. In a real app, check if user is logged in
-        onNavigateToHome()
+        onNavigateToLogin()
     }
 
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         CircularProgressIndicator()
     }
-} 
+}

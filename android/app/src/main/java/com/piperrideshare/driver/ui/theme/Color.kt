@@ -25,9 +25,14 @@ object AppColors {
 
     // Utility functions for opacity
     fun blackWithOpacity(opacity: Float) = Color(0xFF000000).copy(alpha = opacity)
+
     fun orangeWithOpacity(opacity: Float) = Orange.copy(alpha = opacity)
+
     fun redWithOpacity(opacity: Float) = Red.copy(alpha = opacity)
+
     fun whiteWithOpacity(opacity: Float) = Color(0xFFFFFFFF).copy(alpha = opacity)
+
     fun greenWithOpacity(opacity: Float) = Green.copy(alpha = opacity)
+
     fun primaryWithOpacity(opacity: Float) = Primary.copy(alpha = opacity)
 }

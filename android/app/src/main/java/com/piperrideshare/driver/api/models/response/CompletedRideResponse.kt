@@ -14,5 +14,5 @@ data class CompletedRideResponse(
     val duration: Int, // in minutes
     val fare: Double,
     val tip: Double = 0.0,
-    val rating: Double? = null
+    val rating: Double? = null,
 )
