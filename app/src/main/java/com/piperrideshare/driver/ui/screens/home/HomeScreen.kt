@@ -102,6 +102,7 @@ fun HomeScreen(
             isOnline = false
         } else {
             pendingOnlineRequest = true
+            currentRideRequest = null
         }
     }
 

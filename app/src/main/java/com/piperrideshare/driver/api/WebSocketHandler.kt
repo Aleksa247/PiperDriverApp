@@ -1,6 +1,7 @@
 package com.piperrideshare.driver.api
 
 import com.piperrideshare.driver.BuildConfig
+import com.piperrideshare.driver.data.network.WebSocketResult
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -16,81 +17,76 @@ class WebSocketHandler
     constructor() {
         private var webSocket: WebSocket? = null
 
-        fun connect(
-            token: String,
-            onMessage: (String) -> Unit,
-        ) {
-            val client = OkHttpClient()
-            val request =
-                Request
-                    .Builder()
-                    .url("wss://${BuildConfig.BASE_URL}/api/drivers/ws")
-                    .addHeader("Authorization", "Bearer $token")
-                    .build()
+    private var onEventCallback: ((WebSocketResult) -> Unit)? = null
 
-            webSocket =
-                client.newWebSocket(
-                    request,
-                    object : WebSocketListener() {
-                        override fun onOpen(
-                            webSocket: WebSocket,
-                            response: Response,
-                        ) {
-                            println("WebSocket connected")
-                        }
+    fun connect(
+        token: String,
+        onEvent: (WebSocketResult) -> Unit,
+    ) {
+        onEventCallback = onEvent
 
-                        override fun onMessage(
-                            webSocket: WebSocket,
-                            text: String,
-                        ) {
-                            onMessage(text)
-                        }
+        val client = OkHttpClient()
+        val request = Request.Builder()
+            .url("wss://${BuildConfig.BASE_URL}/api/drivers/ws")
+            .addHeader("Authorization", "Bearer $token")
+            .build()
 
-                        override fun onMessage(
-                            webSocket: WebSocket,
-                            bytes: ByteString,
-                        ) {
-                            onMessage(bytes.utf8())
-                        }
+        webSocket = client.newWebSocket(
+            request,
+            object : WebSocketListener() {
 
-                        override fun onFailure(
-                            webSocket: WebSocket,
-                            t: Throwable,
-                            response: Response?,
-                        ) {
-                            println("WebSocket error: ${t.message}")
-                        }
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    println("✅ WebSocket connected")
+                    onEvent(WebSocketResult.Connected)
+                }
 
-                        override fun onClosing(
-                            webSocket: WebSocket,
-                            code: Int,
-                            reason: String,
-                        ) {
-                            webSocket.close(1000, null)
-                            println("WebSocket closing: $reason")
-                        }
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    println("📨 WebSocket message received: $text")
+                    onEvent(WebSocketResult.Message(text))
+                }
 
-                        override fun onClosed(
-                            webSocket: WebSocket,
-                            code: Int,
-                            reason: String,
-                        ) {
-                            println("WebSocket closed: $reason")
-                        }
-                    },
-                )
-        }
+                override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+                    val text = bytes.utf8()
+                    println("📨 WebSocket binary message received: $text")
+                    onEvent(WebSocketResult.Message(text))
+                }
 
-        fun send(message: String) {
-            if (webSocket != null) {
-                webSocket?.send(message)
-            } else {
-                println("WebSocket is not connected. Cannot send message.")
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                    println("❌ WebSocket error: ${t.message}")
+                    onEvent(WebSocketResult.Failure(t.message ?: "Unknown error"))
+                }
+
+                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                    println("⚠️ WebSocket closing: $reason")
+                    onEvent(WebSocketResult.Closing(reason))
+                    webSocket.close(1000, null)
+                }
+
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                    println("🔌 WebSocket closed: $reason")
+                    onEvent(WebSocketResult.Closed(reason))
+                }
             }
-        }
+        )
+    }
 
-        fun disconnect() {
-            webSocket?.close(1000, "Client disconnected")
-            webSocket = null
+    fun send(message: String) {
+        if (webSocket != null) {
+            println("📤 Sending message: $message")
+            webSocket?.send(message)
+        } else {
+            println("⚠️ WebSocket is not connected. Cannot send message.")
         }
     }
+
+    fun disconnect() {
+        webSocket?.close(1000, "Client disconnected")
+        webSocket = null
+        println("🔌 WebSocket manually disconnected.")
+        onEventCallback?.invoke(WebSocketResult.Disconnected)
+    }
+
+    private fun onEvent(result: WebSocketResult) {
+        onEventCallback?.invoke(result)
+    }
+}

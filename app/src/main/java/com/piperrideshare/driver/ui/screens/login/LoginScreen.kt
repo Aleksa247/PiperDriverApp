@@ -19,7 +19,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.piperrideshare.driver.R
 import com.piperrideshare.driver.data.UserPreferences
+import com.piperrideshare.driver.data.network.ApiResult
 import com.piperrideshare.driver.ui.components.PiperDriverButton
 import com.piperrideshare.driver.ui.components.PiperDriverCheckbox
 import com.piperrideshare.driver.ui.components.PiperDriverOutlinedTextField
@@ -80,10 +80,8 @@ fun LoginScreen(
     val loginResult by authViewModel.loginResult.collectAsState()
     val isLoading by authViewModel.isLoading.collectAsState()
 
-    val coroutineScope = rememberCoroutineScope()
-
     // Auto-login if credentials are saved
-    LaunchedEffect(key1 = Unit) {
+    LaunchedEffect(Unit) {
         if (rememberMe && email.isNotBlank() && password.isNotBlank()) {
             authViewModel.login(email, password, deviceId)
         }
@@ -125,6 +123,7 @@ fun LoginScreen(
                 label = "Password",
                 modifier = Modifier.fillMaxWidth(),
                 isPassword = true,
+                enabled = !isLoading,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -169,21 +168,28 @@ fun LoginScreen(
 
             // Display login result messages
             loginResult?.let { result ->
-                if (result.isSuccess) {
-                    // Navigate to home screen on successful login
-                    LaunchedEffect(result) {
-                        onLoginSuccess()
+                when (result) {
+                    is ApiResult.Success -> {
+                        LaunchedEffect(result) {
+                            onLoginSuccess()
+                        }
+                        Text(
+                            text = "Login successful! Welcome ${result.data.name}",
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     }
-                    Text(
-                        text = "Login successful! Welcome ${result.getOrNull()?.userId}",
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                } else if (result.isFailure) {
-                    // Display error message for failed login
-                    Text(
-                        text = "Login failed: ${result.exceptionOrNull()?.message ?: "Unknown error"}",
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                    is ApiResult.Failure -> {
+                        Text(
+                            text = "Login failed: ${result.message}",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    is ApiResult.NetworkError -> {
+                        Text(
+                            text = "Network error: Please check your internet connection.",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         }
