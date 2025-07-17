@@ -2,36 +2,25 @@ package com.piperrideshare.driver.ui.screens.home
 
 import android.Manifest
 import android.widget.Toast
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mapbox.maps.MapView
+import com.piperrideshare.driver.api.models.response.websocket.RideRequestedResponse
 import com.piperrideshare.driver.ui.components.PiperDriverButton
+import com.piperrideshare.driver.ui.components.RideRequestPopup
+import com.piperrideshare.driver.ui.map.*
 import com.piperrideshare.driver.ui.viewModel.WebSocketViewModel
 import com.piperrideshare.driver.utils.LocationTracker
 import com.piperrideshare.driver.utils.PermissionHandler
 import kotlinx.coroutines.launch
+import com.piperrideshare.driver.ui.map.MapView as ComposeMapView
 
 @Composable
 fun HomeScreen(
@@ -42,26 +31,62 @@ fun HomeScreen(
     var isOnline by remember { mutableStateOf(false) }
     var currentLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
     var pendingOnlineRequest by remember { mutableStateOf(false) }
+    var showRidePopup by remember { mutableStateOf(false) }
+    var currentRideRequest by remember { mutableStateOf<RideRequestedResponse?>(null) }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     val rideRequest by viewModel.rideRequest.collectAsState()
     val driverModel by viewModel.driverModel.collectAsState()
+    val zoneInfo by viewModel.zoneInfo.collectAsState()
+    var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
+
+    LaunchedEffect(currentLocation, mapViewInstance) {
+        currentLocation?.let { location ->
+            mapViewInstance?.let { mapView ->
+                flyToLocation(mapView, location = location)
+            }
+        }
+    }
+
+    if (isOnline && currentRideRequest == null) {
+        LaunchedEffect(rideRequest) {
+            println("🔄 RIDE STATE: New rideRequest received = ${rideRequest?.rideId}, Current = ${currentRideRequest?.rideId}")
+
+            if (rideRequest != null && currentRideRequest == null) {
+                // Only accept if no ride is active
+                currentRideRequest = rideRequest
+                showRidePopup = true
+
+                mapViewInstance?.let { mapView ->
+                    rideRequest?.pickupLocation?.let { location ->
+                        addPickupMarker(mapView, location.latitude, location.longitude)
+                        flyToLocation(mapView, latitude = location.latitude, longitude = location.longitude)
+                    }
+                }
+            } else if (rideRequest == null) {
+                // If rideRequest is null (e.g., cleared by server), remove marker
+                mapViewInstance?.let {
+                    clearPickupMarker()
+                }
+            } else {
+                println("🚫 Ignoring new ride request because a ride is already in progress.")
+            }
+        }
+    }
 
     fun goOnlineWithLocation() {
         coroutineScope.launch {
-            val locationTracker = LocationTracker(context)
-            val location = locationTracker.getCurrentLocation()
-
+            val location = LocationTracker(context).getCurrentLocation()
             if (location != null) {
                 currentLocation = location
                 viewModel.goOnline(
                     latitude = location.first,
                     longitude = location.second,
                     deviceId = "device123",
-                    zoneId = "zone456",
-                    rideTypeId = "standard",
+                    zoneId = null,
+                    rideTypeId = null,
                 )
                 isOnline = true
             } else {
@@ -77,6 +102,7 @@ fun HomeScreen(
             isOnline = false
         } else {
             pendingOnlineRequest = true
+            currentRideRequest = null
         }
     }
 
@@ -85,6 +111,19 @@ fun HomeScreen(
             viewModel.clearSession()
             viewModel.disconnect()
             onLogout()
+        }
+    }
+
+    fun handleAcceptRide(rideId: String) {
+        coroutineScope.launch {
+            viewModel.acceptRide(rideId)
+            // onNavigateToRideDetail(rideId)
+        }
+    }
+
+    fun handleDeclineRide(rideId: String) {
+        coroutineScope.launch {
+            viewModel.declineRide(rideId)
         }
     }
 
@@ -103,30 +142,46 @@ fun HomeScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = "Driver App",
-            style = MaterialTheme.typography.headlineLarge,
-        )
-
+        Text("Driver App", style = MaterialTheme.typography.headlineLarge)
         Spacer(modifier = Modifier.height(8.dp))
 
-        driverModel?.driverId?.let { driverId ->
-            Text("Driver ID: $driverId", style = MaterialTheme.typography.bodyMedium)
+        driverModel?.driverId?.let {
+            Text("Driver ID: $it", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        zoneInfo?.payload?.zone?.let { zone ->
+            Text("Zone: ${zone.name}", style = MaterialTheme.typography.bodyMedium)
+            Text("Available Ride Types: ${zone.rideTypeIds.joinToString(", ")}", style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        PiperDriverButton(
-            text = if (isOnline) "Go Offline" else "Go Online",
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            onClick = { toggleOnline() },
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PiperDriverButton(
+                text = if (isOnline) "Go Offline" else "Go Online",
+                modifier = Modifier.weight(1f),
+                onClick = { toggleOnline() },
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            PiperDriverButton(
+                text = "Logout",
+                modifier = Modifier.wrapContentWidth(),
+                onClick = { handleLogout() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Red,
+                    contentColor = Color.White,
+                ),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (isOnline) {
             Card(
@@ -139,29 +194,61 @@ fun HomeScreen(
                     Text("Status: Online", style = MaterialTheme.typography.bodyLarge)
                     Text("Waiting for ride requests...", style = MaterialTheme.typography.bodyMedium)
 
-                    rideRequest?.let { request ->
+                    // Show ride info only if there's no current ride
+                    if (rideRequest != null && currentRideRequest == null) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("🚗 New Ride ID: ${request.rideId}", style = MaterialTheme.typography.bodyLarge)
+                        Text("🚗 New Ride ID: ${rideRequest?.rideId}", style = MaterialTheme.typography.bodyLarge)
                         PiperDriverButton(
                             text = "View Ride Details",
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = { onNavigateToRideDetail(request.rideId) },
+                            onClick = {
+                                println("📋 RIDE DETAILS: Navigating to ride details - ID: ${rideRequest?.rideId}")
+//            onNavigateToRideDetail(rideRequest.rideId)
+                            },
                         )
+                    } else if (rideRequest != null && currentRideRequest != null) {
+                        println("🚫 Ignored New Ride ID: ${rideRequest?.rideId} — already handling ride ${currentRideRequest?.rideId}")
                     }
+
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        PiperDriverButton(
-            text = "Logout",
-            modifier = Modifier.wrapContentWidth(),
-            onClick = { handleLogout() },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Red,
-                contentColor = Color.White,
+        if (showRidePopup && currentRideRequest != null && currentRideRequest == rideRequest) {
+            RideRequestPopup(
+                rideRequest = currentRideRequest!!,
+                onAccept = {
+                    println("✅ POPUP ACCEPT: Accept clicked - ID: ${currentRideRequest?.rideId}")
+                    handleAcceptRide(currentRideRequest!!.rideId)
+                    showRidePopup = false
+                    // Do not clear currentRideRequest
+                },
+                onDecline = {
+                    println("❌ POPUP DECLINE: Decline clicked - ID: ${currentRideRequest?.rideId}")
+                    handleDeclineRide(currentRideRequest!!.rideId)
+                    showRidePopup = false
+                    currentRideRequest = null
+                    clearPickupMarker()
+                },
+                onDismiss = {
+                    println("🚫 POPUP DISMISS: Dismissed - ID: ${currentRideRequest?.rideId}")
+                    showRidePopup = false
+                    currentRideRequest = null
+                    clearPickupMarker()
+                },
             )
-        )
+        }
+
+        if (isOnline) {
+            ComposeMapView(
+                onMapReady = { mapView ->
+                    mapViewInstance = mapView
+                    enableLocationComponent(mapView)
+                    currentLocation?.let { flyToLocation(mapView, location = it) }
+                },
+            )
+        }
     }
 }

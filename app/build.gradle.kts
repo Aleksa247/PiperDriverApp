@@ -1,5 +1,7 @@
 @file:Suppress("UnstableApiUsage", "DEPRECATION")
 
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -11,6 +13,14 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint") version "13.0.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
 }
+
+val localProperties =
+    Properties().apply {
+        load(
+            rootProject.file("local.properties").inputStream(),
+        )
+    }
+val mapboxToken = localProperties["MAPBOX_ACCESS_TOKEN"] as String
 
 android {
     namespace = "com.piperrideshare.driver"
@@ -24,10 +34,11 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary = true
-        }
+        vectorDrawables.useSupportLibrary = true
+
         buildConfigField("String", "BASE_URL", "\"piper-main-app.fly.dev\"")
+
+        resValue("string", "mapbox_access_token", "\"$mapboxToken\"")
     }
 
     buildTypes {
@@ -67,6 +78,7 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
     kotlinOptions {
         freeCompilerArgs = listOf("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
     }
@@ -75,17 +87,17 @@ android {
 dependencies {
     // Android Core
     implementation("androidx.core:core-ktx:1.16.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.2")
     implementation("androidx.activity:activity-compose:1.10.1")
 
     // Compose
-    implementation(platform("androidx.compose:compose-bom:2025.06.01"))
+    implementation(platform("androidx.compose:compose-bom:2025.07.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.navigation:navigation-compose:2.9.1")
+    implementation("androidx.navigation:navigation-compose:2.9.2")
 
     // Hilt
     implementation("com.google.dagger:hilt-android:2.56.2")
@@ -133,7 +145,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2025.06.01"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2025.07.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 
     // Debug
