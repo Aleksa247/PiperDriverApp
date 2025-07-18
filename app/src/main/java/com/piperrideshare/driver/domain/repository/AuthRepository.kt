@@ -7,6 +7,6 @@ interface AuthRepository {
     suspend fun login(
         email: String,
         password: String,
-        deviceId: String
+        deviceId: String,
     ): ApiResult<AuthResponse>
 }

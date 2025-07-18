@@ -1,6 +1,7 @@
 package test.fake
 
 import com.piperrideshare.driver.api.models.response.AuthResponse
+import com.piperrideshare.driver.data.network.ApiResult
 import com.piperrideshare.driver.domain.repository.AuthRepository
 
 class FakeAuthRepository : AuthRepository {
@@ -10,11 +11,11 @@ class FakeAuthRepository : AuthRepository {
         email: String,
         password: String,
         deviceId: String,
-    ): Result<AuthResponse> =
+    ): ApiResult<AuthResponse> =
         if (shouldFail) {
-            Result.failure(Exception("Login failed"))
+            ApiResult.Failure(message = "Login failed", code = 401)
         } else {
-            Result.success(
+            ApiResult.Success(
                 AuthResponse(
                     token = "fake_token",
                     userId = "user123",

@@ -1,5 +1,7 @@
 package test.auth
 
+import com.piperrideshare.driver.api.models.response.AuthResponse
+import com.piperrideshare.driver.data.network.ApiResult
 import com.piperrideshare.driver.ui.screens.login.AuthViewModel
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertTrue
@@ -25,14 +27,18 @@ class AuthViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
     @Before
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
+    fun setup() =
+        runTest {
+            Dispatchers.setMain(testDispatcher)
 
-        fakeAuthRepository = FakeAuthRepository()
-        fakeSessionManager = FakeSessionManager()
+            fakeAuthRepository = FakeAuthRepository()
+            fakeSessionManager = FakeSessionManager()
 
-        viewModel = AuthViewModel(fakeAuthRepository, fakeSessionManager)
-    }
+            // Set the FCM token in the fake session
+            fakeSessionManager.saveFcmToken("device123")
+
+            viewModel = AuthViewModel(fakeAuthRepository, fakeSessionManager)
+        }
 
     @After
     fun tearDown() {
@@ -44,14 +50,13 @@ class AuthViewModelTest {
         runTest {
             val email = "test@example.com"
             val password = "password"
-            val deviceId = "device123"
 
-            viewModel.login(email, password, deviceId)
+            viewModel.login(email, password)
             advanceUntilIdle()
 
             val result = viewModel.loginResult.value
-            assertTrue(result!!.isSuccess)
-            assertEquals("user123", result.getOrNull()?.userId)
+            assertTrue(result is ApiResult.Success)
+            assertEquals("user123", (result as ApiResult.Success<AuthResponse>).data.userId)
             assertEquals("user123", fakeSessionManager.userId.value)
         }
 
@@ -60,10 +65,10 @@ class AuthViewModelTest {
         runTest {
             fakeAuthRepository.shouldFail = true
 
-            viewModel.login("fail@example.com", "wrongpass", "device123")
+            viewModel.login("fail@example.com", "wrongpass")
             advanceUntilIdle()
 
             val result = viewModel.loginResult.value
-            assertTrue(result!!.isFailure)
+            assertTrue(result is ApiResult.Failure)
         }
 }
