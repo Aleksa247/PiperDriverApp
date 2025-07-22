@@ -1,4 +1,4 @@
-package com.piperrideshare.driver.ui.map
+package com.piperrideshare.driver.ui.components
 
 import android.content.Context
 import android.view.ViewGroup
@@ -6,8 +6,9 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MyLocation
@@ -53,7 +54,7 @@ fun clearPickupMarker() {
 }
 
 @Composable
-fun MapView(
+fun PiperDriverMapView(
     modifier: Modifier = Modifier,
     onMapReady: (MapView) -> Unit = {},
 ) {
@@ -82,12 +83,14 @@ fun MapView(
             modifier = Modifier.matchParentSize(),
         )
 
-        Row(
-            modifier =
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .background(Color.Black.copy(alpha = 0.5f)),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .background(Color.Black.copy(alpha = 0.5f))
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             IconButton(
                 onClick = {
@@ -204,7 +207,6 @@ suspend fun forceRefreshLocation(
 
     val newLocation = locationTracker.getCurrentLocation()
     if (newLocation != null) {
-        Toast.makeText(context, "Location refreshed", Toast.LENGTH_SHORT).show()
         onLocationRefreshed(newLocation)
         flyToLocation(mapView, location = newLocation)
     } else {

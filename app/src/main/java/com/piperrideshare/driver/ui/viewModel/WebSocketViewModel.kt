@@ -169,11 +169,12 @@ class WebSocketViewModel
         fun goOnline(
             latitude: Double,
             longitude: Double,
-            deviceId: String,
             zoneId: String? = null,
             rideTypeId: String? = null,
         ) {
             viewModelScope.launch {
+                val deviceId = sessionManager.fcmToken.first() ?: "Unknown"
+
                 // @Thomas - BREAKPOINT HERE: About to send go online WebSocket message
                 Timber.d("🌐 WEBSOCKET: Sending go online request")
                 Timber.d("📍 Location: lat=$latitude, lng=$longitude")
