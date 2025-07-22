@@ -19,7 +19,6 @@ class SessionManager
     constructor(
         @ApplicationContext private val context: Context,
     ) : ISessionManager {
-
         override suspend fun saveAuthInfo(
             token: String,
             userId: String?,
@@ -32,9 +31,17 @@ class SessionManager
             }
         }
 
-        override val token: Flow<String?> = context.dataStore.data.map { it[Constants.TOKEN_KEY] }
+        override suspend fun saveFcmToken(token: String) {
+            context.dataStore.edit { prefs ->
+                prefs[Constants.FCM_TOKEN_KEY] = token
+            }
+        }
+
+        override val userToken: Flow<String?> = context.dataStore.data.map { it[Constants.TOKEN_KEY] }
         override val userId: Flow<String?> = context.dataStore.data.map { it[Constants.USER_ID_KEY] }
         override val name: Flow<String?> = context.dataStore.data.map { it[Constants.NAME_KEY] }
+        override val fcmToken: Flow<String?> =
+            context.dataStore.data.map { it[Constants.FCM_TOKEN_KEY] }
 
         override suspend fun clearSession() {
             context.dataStore.edit { it.clear() }

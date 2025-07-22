@@ -8,17 +8,17 @@ import com.piperrideshare.driver.data.network.safeApiCall
 import com.piperrideshare.driver.domain.repository.AuthRepository
 import javax.inject.Inject
 
-class AuthRepositoryImpl @Inject constructor(
-    private val api: ApiService,
-) : AuthRepository {
-
-    override suspend fun login(
-        email: String,
-        password: String,
-        deviceId: String
-    ): ApiResult<AuthResponse> {
-        return safeApiCall {
-            api.login(LoginRequest(email, password, deviceId))
-        }
+class AuthRepositoryImpl
+    @Inject
+    constructor(
+        private val api: ApiService,
+    ) : AuthRepository {
+        override suspend fun login(
+            email: String,
+            password: String,
+            deviceId: String,
+        ): ApiResult<AuthResponse> =
+            safeApiCall {
+                api.login(LoginRequest(email, password, deviceId))
+            }
     }
-}

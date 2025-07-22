@@ -9,9 +9,12 @@ interface ISessionManager {
         name: String?,
     )
 
+    suspend fun saveFcmToken(token: String)
+
     suspend fun clearSession()
 
-    val token: Flow<String?>
+    val userToken: Flow<String?>
     val userId: Flow<String?>
     val name: Flow<String?>
+    val fcmToken: Flow<String?>
 }

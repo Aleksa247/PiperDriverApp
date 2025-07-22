@@ -9,6 +9,8 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
     id("kotlinx-serialization")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
     id("org.jlleitschuh.gradle.ktlint") version "13.0.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
@@ -48,10 +50,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+
+            buildConfigField("String", "DEFAULT_EMAIL", "\"\"")
+            buildConfigField("String", "DEFAULT_PASSWORD", "\"\"")
         }
         debug {
             isMinifyEnabled = false
             isDebuggable = true
+
+            buildConfigField("String", "DEFAULT_EMAIL", "\"john.smith@thepiper.co\"")
+            buildConfigField("String", "DEFAULT_PASSWORD", "\"Test@123\"")
         }
     }
 
@@ -100,8 +108,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.2")
 
     // Hilt
-    implementation("com.google.dagger:hilt-android:2.56.2")
-    kapt("com.google.dagger:hilt-android-compiler:2.56.2")
+    implementation("com.google.dagger:hilt-android:2.57")
+    kapt("com.google.dagger:hilt-android-compiler:2.57")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Retrofit & OkHttp
@@ -140,6 +148,16 @@ dependencies {
 
     // Security
     implementation("androidx.security:security-crypto:1.1.0-beta01")
+
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-crashlytics")
+    implementation("com.google.firebase:firebase-perf")
+    implementation("com.google.firebase:firebase-messaging")
+
+    // Timber
+    implementation("com.jakewharton.timber:timber:5.0.1")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

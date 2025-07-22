@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -61,9 +62,9 @@ class WebSocketViewModel
          * This ensures real-time communication is established as soon as the driver
          * reaches the home screen.
          */
-        init {
+        fun initialize() {
             viewModelScope.launch {
-                sessionManager.token.first()?.let { token ->
+                sessionManager.userToken.first()?.let { token ->
                     connect(token)
                 }
             }
@@ -79,53 +80,53 @@ class WebSocketViewModel
          */
         private fun connect(token: String) {
             // O@Thomas - BREAKPOINT HERE: WebSocket connection established
-            println("🔗 WEBSOCKET: Connection established with token: ${token.take(10)}...")
+            Timber.d("🔗 WEBSOCKET: Connection established with token: ${token.take(10)}...")
 
             repository.connect(token) { response ->
                 viewModelScope.launch {
                     // Thomas Breakpoint: Set breakpoint here to see all incoming WebSocket messages
                     // @Thomas - BREAKPOINT HERE: WebSocket message received
-                    println("📨 WEBSOCKET: Message received - Type: ${response.javaClass.simpleName}")
+                    Timber.d("📨 WEBSOCKET: Message received - Type: ${response.javaClass.simpleName}")
 
                     // Process different types of WebSocket responses
                     when (response) {
                         // Thomas Breakpoint: Set breakpoint here to debug ride request handling
                         is RideRequestedResponse -> {
                             // @Thomas - BREAKPOINT HERE: Ride request received
-                            println("🚗 WEBSOCKET: New ride request - ID: ${response.rideId}")
+                            Timber.d("🚗 WEBSOCKET: New ride request - ID: ${response.rideId}")
                             _rideRequest.value = response
                         }
                         // Thomas Breakpoint: Set breakpoint here to debug driver model updates
                         is DriverModelChangedResponse -> {
                             // @Thomas - BREAKPOINT HERE: Driver model update received
-                            println("👤 WEBSOCKET: Driver model updated - ID: ${response.driverId}")
+                            Timber.d("👤 WEBSOCKET: Driver model updated - ID: ${response.driverId}")
                             _driverModel.value = response
                         }
                         is RideModelChangedResponse -> {
                             // @Thomas - BREAKPOINT HERE: Ride model update received
-                            println("🚕 WEBSOCKET: Ride model updated")
+                            Timber.d("🚕 WEBSOCKET: Ride model updated")
                             _rideModel.value = response
                         }
                         is ZoneInfoResponse -> {
                             // @Thomas - BREAKPOINT HERE: Zone information received
-                            println("🗺️ WEBSOCKET: Zone information received")
-                            println("📍 Zone ID: ${response.payload.zone.id}")
-                            println("🏙️ Zone Name: ${response.payload.zone.name}")
-                            println("🚗 Available Ride Types: ${response.payload.zone.rideTypeIds}")
-                            println("💰 Vehicle Types: ${response.payload.zone.vehicleTypes.map { it.name }}")
+                            Timber.d("🗺️ WEBSOCKET: Zone information received")
+                            Timber.d("📍 Zone ID: ${response.payload.zone.id}")
+                            Timber.d("🏙️ Zone Name: ${response.payload.zone.name}")
+                            Timber.d("🚗 Available Ride Types: ${response.payload.zone.rideTypeIds}")
+                            Timber.d("💰 Vehicle Types: ${response.payload.zone.vehicleTypes.map { it.name }}")
                             _zoneInfo.value = response
                         }
                         is ActionResponse -> {
                             // @Thomas - BREAKPOINT HERE: Action response received
-                            println("📨 WEBSOCKET: Action response - ${response.action} - Status: ${response.status}")
+                            Timber.d("📨 WEBSOCKET: Action response - ${response.action} - Status: ${response.status}")
                             if (response.error.isNotEmpty()) {
-                                println("❌ WEBSOCKET: Action error - ${response.error}")
+                                Timber.d("❌ WEBSOCKET: Action error - ${response.error}")
                             }
                         }
                         // Thomas Breakpoint: Set breakpoint here if getting unknown message types
                         is UnknownResponse -> {
                             // @Thomas - BREAKPOINT HERE: Unknown WebSocket message
-                            println("❓ WEBSOCKET: Unknown message type - ${response.raw}")
+                            Timber.d("❓ WEBSOCKET: Unknown message type - ${response.raw}")
                         }
                     }
                 }
@@ -174,9 +175,9 @@ class WebSocketViewModel
         ) {
             viewModelScope.launch {
                 // @Thomas - BREAKPOINT HERE: About to send go online WebSocket message
-                println("🌐 WEBSOCKET: Sending go online request")
-                println("📍 Location: lat=$latitude, lng=$longitude")
-                println("📱 Device ID: $deviceId")
+                Timber.d("🌐 WEBSOCKET: Sending go online request")
+                Timber.d("📍 Location: lat=$latitude, lng=$longitude")
+                Timber.d("📱 Device ID: $deviceId")
 
                 // Use dynamic zone and ride type information if available
                 val currentZoneInfo = _zoneInfo.value
@@ -188,18 +189,18 @@ class WebSocketViewModel
                         ?.rideTypeIds
                         ?.firstOrNull() ?: "unknown_ride_type"
 
-                println("🗺️ Zone ID: $finalZoneId (${if (zoneId == null) "from zone info" else "provided"})")
-                println("🚗 Ride Type: $finalRideTypeId (${if (rideTypeId == null) "from zone info" else "provided"})")
+                Timber.d("🗺️ Zone ID: $finalZoneId (${if (zoneId == null) "from zone info" else "provided"})")
+                Timber.d("🚗 Ride Type: $finalRideTypeId (${if (rideTypeId == null) "from zone info" else "provided"})")
 
-                sessionManager.token.first()?.let { token ->
-                    println("🔑 Using auth token: ${token.take(10)}...")
+                sessionManager.userToken.first()?.let { token ->
+                    Timber.d("🔑 Using auth token: ${token.take(10)}...")
                     repository.sendGoOnline(latitude, longitude, deviceId, finalZoneId, finalRideTypeId)
 
                     // @Thomas - BREAKPOINT HERE: Go online WebSocket message sent
-                    println("✅ WEBSOCKET: Go online message sent successfully")
+                    Timber.d("✅ WEBSOCKET: Go online message sent successfully")
                 } ?: run {
                     // @Thomas - BREAKPOINT HERE: No auth token available
-                    println("❌ WEBSOCKET ERROR: No authentication token available")
+                    Timber.e("❌ WEBSOCKET ERROR: No authentication token available")
                 }
             }
         }
@@ -229,11 +230,11 @@ class WebSocketViewModel
             viewModelScope.launch {
                 // @Thomas - BREAKPOINT HERE: WebSocket accepting ride request
                 // This sends the accept ride WebSocket message to the backend
-                println("✅ WEBSOCKET: Accepting ride request - ID: $rideId")
+                Timber.d("✅ WEBSOCKET: Accepting ride request - ID: $rideId")
                 repository.sendAcceptRide(rideId)
                 // Clear the ride request after accepting
                 _rideRequest.value = null
-                println("🧹 WEBSOCKET: Cleared ride request from state after accept")
+                Timber.d("🧹 WEBSOCKET: Cleared ride request from state after accept")
             }
         }
 
@@ -246,12 +247,12 @@ class WebSocketViewModel
             viewModelScope.launch {
                 // @Thomas - BREAKPOINT HERE: WebSocket declining ride request
                 // This handles ride decline (currently no WebSocket message, just clears state)
-                println("❌ WEBSOCKET: Declining ride request - ID: $rideId")
+                Timber.e("❌ WEBSOCKET: Declining ride request - ID: $rideId")
                 // TODO: Add decline ride method to repository when backend supports it
                 // repository.sendDeclineRide(rideId)
                 // Clear the ride request after declining
                 _rideRequest.value = null
-                println("🧹 WEBSOCKET: Cleared ride request from state after decline")
+                Timber.d("🧹 WEBSOCKET: Cleared ride request from state after decline")
             }
         }
 
@@ -263,7 +264,7 @@ class WebSocketViewModel
         fun arriveAtPickup(rideId: String) {
             // @Thomas - BREAKPOINT HERE: Driver arriving at pickup
             // This notifies the backend that driver has arrived at pickup location
-            println("📍 WEBSOCKET: Driver arriving at pickup - ID: $rideId")
+            Timber.d("📍 WEBSOCKET: Driver arriving at pickup - ID: $rideId")
             repository.sendArriveAtPickup(rideId)
         }
 
@@ -275,7 +276,7 @@ class WebSocketViewModel
         fun startRide(rideId: String) {
             // @Thomas - BREAKPOINT HERE: Starting ride journey
             // This notifies the backend that the ride journey has started
-            println("🚀 WEBSOCKET: Starting ride journey - ID: $rideId")
+            Timber.d("🚀 WEBSOCKET: Starting ride journey - ID: $rideId")
             repository.sendStartRide(rideId)
         }
 
@@ -291,7 +292,7 @@ class WebSocketViewModel
         ) {
             // @Thomas - BREAKPOINT HERE: Completing ride
             // This submits the final ride completion with distance traveled
-            println("🏁 WEBSOCKET: Completing ride - ID: $rideId, Distance: $distance km")
+            Timber.d("🏁 WEBSOCKET: Completing ride - ID: $rideId, Distance: $distance km")
             repository.sendCompleteRide(rideId, distance)
         }
 
@@ -303,7 +304,7 @@ class WebSocketViewModel
         fun getActiveRide() {
             // @Thomas - BREAKPOINT HERE: Getting active ride info
             // This requests information about the currently active ride
-            println("📋 WEBSOCKET: Requesting active ride information")
+            Timber.d("📋 WEBSOCKET: Requesting active ride information")
             repository.sendGetActiveRide()
         }
     }

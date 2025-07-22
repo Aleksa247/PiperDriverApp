@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.piperrideshare.driver.BuildConfig
 import com.piperrideshare.driver.R
 import com.piperrideshare.driver.data.UserPreferences
 import com.piperrideshare.driver.data.network.ApiResult
@@ -64,26 +65,31 @@ fun LoginScreen(
     var rememberMe by remember { mutableStateOf(userPrefs.rememberMe) }
     var email by remember {
         mutableStateOf(
-            if (userPrefs.email.isNullOrBlank()) "john.smith@thepiper.co" else userPrefs.email!!,
+            when {
+                BuildConfig.DEBUG -> userPrefs.email.takeIf { !it.isNullOrBlank() } ?: BuildConfig.DEFAULT_EMAIL
+                else -> userPrefs.email.orEmpty()
+            },
         )
     }
+
     var password by remember {
         mutableStateOf(
-            if (userPrefs.password.isNullOrBlank()) "Test@123" else userPrefs.password!!,
+            when {
+                BuildConfig.DEBUG -> userPrefs.password.takeIf { !it.isNullOrBlank() } ?: BuildConfig.DEFAULT_PASSWORD
+                else -> userPrefs.password.orEmpty()
+            },
         )
     }
-    // @Thomas - Replace with actual Firebase FCM token or unique device identifier
-    // Current implementation uses hardcoded value for testing purposes
-    var deviceId by remember { mutableStateOf("device_002") }
 
     // Observe ViewModel state
     val loginResult by authViewModel.loginResult.collectAsState()
     val isLoading by authViewModel.isLoading.collectAsState()
 
-    // Auto-login if credentials are saved
+    // Auto-login logic if rememberMe is true and credentials are available
     LaunchedEffect(Unit) {
+        // @Thomas - BREAKPOINT HERE:: Auto-login triggered if rememberMe and credentials present
         if (rememberMe && email.isNotBlank() && password.isNotBlank()) {
-            authViewModel.login(email, password, deviceId)
+            authViewModel.login(email, password)
         }
     }
 
@@ -97,7 +103,7 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            // App logo and branding
+            // @Thomas - BREAKPOINT HERE:: App logo shown here
             XmlDrawableImage(
                 drawableRes = R.mipmap.ic_launcher,
                 contentDescription = stringResource(R.string.app_name),
@@ -105,7 +111,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Email input field
+            // @Thomas - BREAKPOINT HERE:: Email input field UI
             PiperDriverOutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
@@ -116,7 +122,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Password input field with secure text entry
+            // @Thomas - BREAKPOINT HERE:: Password input field UI
             PiperDriverOutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -128,7 +134,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Remember me checkbox
+            // @Thomas - BREAKPOINT HERE:: Remember Me checkbox UI
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
@@ -143,17 +149,17 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Login button with async operation support
+            // @Thomas - BREAKPOINT HERE:: Login button UI and click handler
             PiperDriverButton(
                 text = "Login",
                 modifier = Modifier.fillMaxWidth(),
                 enabled = email.isNotBlank() && password.isNotBlank() && !isLoading,
                 isAsync = true,
                 onClickSuspend = {
-                    // Perform login operation
-                    authViewModel.login(email, password, deviceId)
+                    // @Thomas - BREAKPOINT HERE:: Login button clicked; call ViewModel.login
+                    authViewModel.login(email, password)
 
-                    // Save or clear credentials based on remember me setting
+                    // @Thomas - BREAKPOINT HERE:: Save or clear credentials based on rememberMe
                     if (rememberMe) {
                         userPrefs.rememberMe = true
                         userPrefs.email = email
@@ -166,11 +172,12 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Display login result messages
+            // @Thomas - BREAKPOINT HERE:: Show login results messages (success, failure, network error)
             loginResult?.let { result ->
                 when (result) {
                     is ApiResult.Success -> {
                         LaunchedEffect(result) {
+                            // @Thomas - BREAKPOINT HERE:: Login success detected, trigger success callback
                             onLoginSuccess()
                         }
                         Text(
@@ -194,7 +201,7 @@ fun LoginScreen(
             }
         }
 
-        // Loading overlay displayed during authentication
+        // Loading overlay during login process
         if (isLoading) {
             Box(
                 modifier =
@@ -204,6 +211,7 @@ fun LoginScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // @Thomas - BREAKPOINT HERE:: Show CircularProgressIndicator during login
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Signing in...", style = MaterialTheme.typography.bodyLarge)

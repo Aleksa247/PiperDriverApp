@@ -90,4 +90,4 @@ data class ZoneRequirements(
     val minVehicleYear: Int,
     @SerializedName("required_documents")
     val requiredDocuments: List<String>,
-) 
+)

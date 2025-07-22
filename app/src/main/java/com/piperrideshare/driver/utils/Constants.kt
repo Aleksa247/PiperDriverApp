@@ -14,4 +14,5 @@ object Constants {
     val TOKEN_KEY = stringPreferencesKey("token")
     val USER_ID_KEY = stringPreferencesKey("user_id")
     val NAME_KEY = stringPreferencesKey("name")
+    val FCM_TOKEN_KEY = stringPreferencesKey("fcm_token_key")
 }

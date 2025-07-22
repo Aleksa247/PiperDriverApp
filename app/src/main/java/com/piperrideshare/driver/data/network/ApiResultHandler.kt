@@ -3,8 +3,8 @@ package com.piperrideshare.driver.data.network
 import retrofit2.HttpException
 import java.io.IOException
 
-suspend fun <T> safeApiCall(apiCall: suspend () -> T): ApiResult<T> {
-    return try {
+suspend fun <T> safeApiCall(apiCall: suspend () -> T): ApiResult<T> =
+    try {
         ApiResult.Success(apiCall())
     } catch (e: HttpException) {
         val message = e.response()?.errorBody()?.string() ?: "HTTP ${e.code()} error"
@@ -14,4 +14,3 @@ suspend fun <T> safeApiCall(apiCall: suspend () -> T): ApiResult<T> {
     } catch (e: Exception) {
         ApiResult.Failure(e.message ?: "Unexpected error")
     }
-}

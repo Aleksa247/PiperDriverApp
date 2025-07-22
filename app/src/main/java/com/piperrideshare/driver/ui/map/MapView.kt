@@ -29,6 +29,7 @@ import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
+import com.mapbox.maps.extension.style.style
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.piperrideshare.driver.utils.LocationTracker
 import kotlinx.coroutines.launch
@@ -69,7 +70,10 @@ fun MapView(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                         )
 
-                    mapboxMap.loadStyleUri(Style.MAPBOX_STREETS) {
+                    mapboxMap.loadStyle(
+                        styleExtension = style(Style.MAPBOX_STREETS) {
+                        }
+                    ) { style ->
                         mapView = this@apply
                         onMapReady(this@apply)
                     }
@@ -136,10 +140,10 @@ fun MapView(
                                 latLng?.let { (lat, lon) ->
                                     flyToLocation(safeMapView, latitude = lat, longitude = lon)
                                 }
-                            }
+                            },
                         )
                     }
-                }
+                },
             ) {
                 Icon(
                     imageVector = Icons.Default.MyLocation,
@@ -193,7 +197,7 @@ fun flyToLocation(
 suspend fun forceRefreshLocation(
     context: Context,
     mapView: MapView,
-    onLocationRefreshed: (location: Pair<Double, Double>?) -> Unit = {}
+    onLocationRefreshed: (location: Pair<Double, Double>?) -> Unit = {},
 ) {
     val locationTracker = LocationTracker(context)
     locationTracker.clearLocationCache()

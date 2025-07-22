@@ -7,6 +7,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.tasks.await
+import timber.log.Timber
 
 /**
  * Enhanced LocationTracker with better accuracy handling
@@ -44,16 +45,16 @@ class LocationTracker(
                     Pair(currentLocation.latitude, currentLocation.longitude)
                 } else {
                     // Location is too close to last location, try to get a new one
-                    println("📍 LOCATION: Location too close to previous, requesting new location...")
+                    Timber.d("📍 LOCATION: Location too close to previous, requesting new location...")
                     getNewLocationWithRequest(locationRequest)
                 }
             } ?: run {
                 // No last location available, request a new one
-                println("📍 LOCATION: No last location available, requesting new location...")
+                Timber.d("📍 LOCATION: No last location available, requesting new location...")
                 getNewLocationWithRequest(locationRequest)
             }
         } catch (e: Exception) {
-            println("❌ LOCATION ERROR: ${e.message}")
+            Timber.e("❌ LOCATION ERROR: ${e.message}")
             e.printStackTrace()
             null
         }
@@ -65,15 +66,16 @@ class LocationTracker(
             val location = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
             location?.let {
                 lastLocation = it
-                println("📍 LOCATION: New location obtained - lat: ${it.latitude}, lng: ${it.longitude}")
+                Timber.d("📍 LOCATION: New location obtained - lat: ${it.latitude}, lng: ${it.longitude}")
                 Pair(it.latitude, it.longitude)
             }
         } catch (e: Exception) {
-            println("❌ LOCATION REQUEST ERROR: ${e.message}")
+            Timber.e("❌ LOCATION REQUEST ERROR: ${e.message}")
             e.printStackTrace()
             null
         }
 
+    @SuppressLint("DefaultLocale")
     private fun isLocationSignificantlyDifferent(newLocation: Location): Boolean {
         val lastLoc = lastLocation ?: return true // First location is always significant
 
@@ -82,7 +84,7 @@ class LocationTracker(
 
         val isSignificant = distance >= minDistanceMeters
         if (!isSignificant) {
-            println("📍 LOCATION: Location too close (${String.format("%.1f", distance)}m < ${minDistanceMeters}m)")
+            Timber.d("📍 LOCATION: Location too close (${String.format("%.1f", distance)}m < ${minDistanceMeters}m)")
         }
 
         return isSignificant
@@ -93,6 +95,6 @@ class LocationTracker(
      */
     fun clearLocationCache() {
         lastLocation = null
-        println("📍 LOCATION: Location cache cleared")
+        Timber.d("📍 LOCATION: Location cache cleared")
     }
 }

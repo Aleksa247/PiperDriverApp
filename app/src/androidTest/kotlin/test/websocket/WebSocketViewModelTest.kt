@@ -39,6 +39,8 @@ class WebSocketViewModelTest {
             fakeRepository = FakeWebSocketRepository()
 
             viewModel = WebSocketViewModel(fakeRepository, fakeSessionManager)
+            viewModel.initialize()
+
             advanceUntilIdle()
         }
 
@@ -90,5 +92,40 @@ class WebSocketViewModelTest {
     fun connect_uses_session_token_correctly() =
         runTest {
             assertEquals("fake_token", fakeRepository.connectedToken)
+        }
+
+    @Test
+    fun goOnline_sends_correct_parameters() =
+        runTest {
+            val latitude = 12.34
+            val longitude = 56.78
+            val deviceId = "device123"
+            val zoneId = "zoneA"
+            val rideTypeId = "rideType1"
+
+            viewModel.goOnline(latitude, longitude, deviceId, zoneId, rideTypeId)
+            advanceUntilIdle()
+
+            val lastCall = fakeRepository.sentGoOnlineCalls.last()
+            assertEquals(latitude, lastCall.latitude)
+            assertEquals(longitude, lastCall.longitude)
+            assertEquals(deviceId, lastCall.deviceId)
+            assertEquals(zoneId, lastCall.zoneId)
+            assertEquals(rideTypeId, lastCall.rideTypeId)
+        }
+
+    @Test
+    fun acceptRide_clears_rideRequest() =
+        runTest {
+            val response = RideRequestedResponse("ride123")
+            fakeRepository.triggerFakeResponse(response)
+            advanceUntilIdle()
+
+            assertEquals(response, viewModel.rideRequest.value)
+
+            viewModel.acceptRide("ride123")
+            advanceUntilIdle()
+
+            assertNull(viewModel.rideRequest.value)
         }
 }
