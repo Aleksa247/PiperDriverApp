@@ -3,24 +3,65 @@ package com.piperrideshare.driver.ui.screens.home
 import android.Manifest
 import android.os.Build
 import android.widget.Toast
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mapbox.maps.MapView
 import com.piperrideshare.driver.api.models.response.websocket.RideRequestedResponse
-import com.piperrideshare.driver.ui.components.*
+import com.piperrideshare.driver.ui.components.PiperDriverButton
+import com.piperrideshare.driver.ui.components.RideRequestPopup
+import com.piperrideshare.driver.ui.components.addPickupMarker
+import com.piperrideshare.driver.ui.components.clearPickupMarker
+import com.piperrideshare.driver.ui.components.enableLocationComponent
+import com.piperrideshare.driver.ui.components.flyToLocation
 import com.piperrideshare.driver.ui.viewModel.WebSocketViewModel
 import com.piperrideshare.driver.utils.LocationTracker
 import com.piperrideshare.driver.utils.PermissionHandler
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import com.piperrideshare.driver.ui.components.PiperDriverMapView as ComposeMapView
+
+sealed class BottomNavItem(val label: String, val icon: ImageVector) {
+    object Home : BottomNavItem("Home", Icons.Default.Home)
+    object Activity : BottomNavItem("Activity", Icons.Default.List)
+    object Account : BottomNavItem("Account", Icons.Default.Person)
+}
 
 @Composable
 fun HomeScreen(
@@ -42,6 +83,8 @@ fun HomeScreen(
     val driverModel by viewModel.driverModel.collectAsState()
     val zoneInfo by viewModel.zoneInfo.collectAsState()
     var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
+
+    var selectedTab by remember { mutableStateOf<BottomNavItem>(BottomNavItem.Home) }
 
     LaunchedEffect(currentLocation, mapViewInstance) {
         currentLocation?.let { location ->
@@ -166,7 +209,10 @@ fun HomeScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         if (isOnline) {
             ComposeMapView(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(fraction = 1f)
+                    .padding(bottom = 56.dp),
                 onMapReady = { mapView ->
                     mapViewInstance = mapView
                     enableLocationComponent(mapView)
@@ -180,7 +226,8 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(16.dp)
+                .padding(bottom = 56.dp), // add bottom padding for bottom nav
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("Driver App", style = MaterialTheme.typography.headlineLarge)
@@ -283,6 +330,47 @@ fun HomeScreen(
                     clearPickupMarker()
                 },
             )
+        }
+
+        // Bottom navigation bar - black background, white icons and labels
+        NavigationBar(
+            containerColor = Color.White,
+            contentColor = Color.Black,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        ) {
+            listOf(
+                BottomNavItem.Home,
+                BottomNavItem.Activity,
+                BottomNavItem.Account,
+            ).forEach { item ->
+                NavigationBarItem(
+                    selected = selectedTab == item,
+                    onClick = { selectedTab = item },
+                    icon = {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.label,
+                            tint = if (selectedTab == item) Color.Black else Color.Gray
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = item.label,
+                            color = if (selectedTab == item) Color.Black else Color.Gray
+                        )
+                    },
+                    alwaysShowLabel = true,
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color.Black,
+                        unselectedIconColor = Color.Gray,
+                        selectedTextColor = Color.Black,
+                        unselectedTextColor = Color.Gray,
+                        indicatorColor = Color.Transparent // no highlight behind selected item
+                    )
+                )
+            }
         }
     }
 }
