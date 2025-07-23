@@ -103,7 +103,7 @@ class WebSocketViewModelTest {
             val zoneId = "zoneA"
             val rideTypeId = "rideType1"
 
-            viewModel.goOnline(latitude, longitude, deviceId, zoneId, rideTypeId)
+            viewModel.goOnline(latitude, longitude, zoneId, rideTypeId)
             advanceUntilIdle()
 
             val lastCall = fakeRepository.sentGoOnlineCalls.last()

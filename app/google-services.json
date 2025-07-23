@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "582492302493",
+    "project_id": "piperrideshare",
+    "storage_bucket": "piperrideshare.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:582492302493:android:2138b5ee1cf398c6d37874",
+        "android_client_info": {
+          "package_name": "com.piperrideshare.driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBs46gYmNUK23BEO6syCLAk5D2VmRsgYYg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

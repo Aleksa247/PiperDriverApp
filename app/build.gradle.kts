@@ -150,7 +150,7 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-beta01")
 
     // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
+    implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-crashlytics")
     implementation("com.google.firebase:firebase-perf")
