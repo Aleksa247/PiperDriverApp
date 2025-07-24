@@ -95,7 +95,7 @@ fun RideRequestPopup(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = pickup.address ?: "${pickup.latitude}, ${pickup.longitude}",
+                                    text = "${pickup.latitude}, ${pickup.longitude}",
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
@@ -117,7 +117,7 @@ fun RideRequestPopup(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = dropoff.address ?: "${dropoff.latitude}, ${dropoff.longitude}",
+                                    text = "${dropoff.latitude}, ${dropoff.longitude}",
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
@@ -133,7 +133,7 @@ fun RideRequestPopup(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("💰", style = MaterialTheme.typography.bodyLarge)
                                 Text(
-                                    text = "$${String.format("%.2f", fare)}",
+                                    text = "$${String.format("%.2f", fare/100)}",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                 )

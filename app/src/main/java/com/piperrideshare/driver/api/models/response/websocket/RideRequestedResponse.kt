@@ -7,24 +7,28 @@ import com.google.gson.annotations.SerializedName
  *
  * Contains detailed information about a new ride request including
  * pickup/dropoff locations, estimated fare, and rider details.
- *
- * @author Thomas Woodfin
  */
 data class RideRequestedResponse(
-    val rideId: String,
+    @SerializedName("rideId")
+    val rideId: String = "",
+
+    @SerializedName("startingLocation")
     val pickupLocation: Location? = null,
+
+    @SerializedName("endingLocation")
     val dropoffLocation: Location? = null,
+
+    @SerializedName("totalEarnings")
     val estimatedFare: Double? = null,
+
+    @SerializedName("estimatedLength")
     val estimatedDistance: Double? = null,
-    val estimatedDuration: Int? = null, // in minutes
-    val riderName: String? = null,
-    val rideType: String? = null,
-    @SerializedName("request_time")
-    val requestTime: String? = null,
+
+    @SerializedName("estimatedTime")
+    val estimatedDuration: Int? = null
 ) : WebSocketResponse()
 
 data class Location(
     val latitude: Double,
-    val longitude: Double,
-    val address: String? = null,
+    val longitude: Double
 )

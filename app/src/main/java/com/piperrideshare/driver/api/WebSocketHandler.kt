@@ -13,115 +13,101 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class WebSocketHandler
-    @Inject
-    constructor() {
-        private var webSocket: WebSocket? = null
+class WebSocketHandler @Inject constructor() {
+    private var webSocket: WebSocket? = null
+    private var onEventCallback: ((WebSocketResult) -> Unit)? = null
 
-        private var onEventCallback: ((WebSocketResult) -> Unit)? = null
+    private var lastToken: String? = null
+    private var autoReconnect = true
+    private var reconnecting = false
 
-        fun connect(
-            token: String,
-            onEvent: (WebSocketResult) -> Unit,
-        ) {
-            onEventCallback = onEvent
+    fun connect(
+        token: String,
+        onEvent: (WebSocketResult) -> Unit,
+    ) {
+        this.lastToken = token
+        this.onEventCallback = onEvent
+        this.reconnecting = false
 
-            val client = OkHttpClient()
-            val request =
-                Request
-                    .Builder()
-                    .url("wss://${BuildConfig.BASE_URL}/api/drivers/ws")
-                    .addHeader("Authorization", "Bearer $token")
-                    .build()
+        val client = OkHttpClient()
+        val request = Request.Builder()
+            .url("wss://${BuildConfig.BASE_URL}/api/drivers/ws")
+            .addHeader("Authorization", "Bearer $token")
+            .build()
 
-            // @Thomas - BREAKPOINT HERE: Inspect request URL and headers before connection starts
-            webSocket =
-                client.newWebSocket(
-                    request,
-                    object : WebSocketListener() {
-                        override fun onOpen(
-                            webSocket: WebSocket,
-                            response: Response,
-                        ) {
-                            Timber.d("✅ WebSocket connected")
-                            // @Thomas - BREAKPOINT HERE: Connection opened; inspect response headers if needed
-                            onEvent(WebSocketResult.Connected)
-                        }
+        webSocket = client.newWebSocket(
+            request,
+            object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    Timber.d("✅ WebSocket connected")
+                    onEvent(WebSocketResult.Connected)
+                }
 
-                        override fun onMessage(
-                            webSocket: WebSocket,
-                            text: String,
-                        ) {
-                            Timber.d("📨 WebSocket message received: $text")
-                            // @Thomas - BREAKPOINT HERE: Received text message from server; check message content
-                            onEvent(WebSocketResult.Message(text))
-                        }
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    Timber.d("📨 WebSocket message received: $text")
+                    onEvent(WebSocketResult.Message(text))
+                }
 
-                        override fun onMessage(
-                            webSocket: WebSocket,
-                            bytes: ByteString,
-                        ) {
-                            val text = bytes.utf8()
-                            Timber.d("📨 WebSocket binary message received: $text")
-                            // @Thomas - BREAKPOINT HERE: Binary message converted to text; validate conversion
-                            onEvent(WebSocketResult.Message(text))
-                        }
+                override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+                    val text = bytes.utf8()
+                    Timber.d("📨 WebSocket binary message received: $text")
+                    onEvent(WebSocketResult.Message(text))
+                }
 
-                        override fun onFailure(
-                            webSocket: WebSocket,
-                            t: Throwable,
-                            response: Response?,
-                        ) {
-                            Timber.e("❌ WebSocket error: ${t.message}")
-                            // @Thomas - BREAKPOINT HERE: Inspect error details and possible response from server
-                            onEvent(WebSocketResult.Failure(t.message ?: "Unknown error"))
-                        }
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                    Timber.e("❌ WebSocket error: ${t.message}")
+                    onEvent(WebSocketResult.Failure(t.message ?: "Unknown error"))
+                    handleReconnect()
+                }
 
-                        override fun onClosing(
-                            webSocket: WebSocket,
-                            code: Int,
-                            reason: String,
-                        ) {
-                            Timber.d("⚠️ WebSocket closing: $reason")
-                            // @Thomas - BREAKPOINT HERE: Graceful shutdown started; inspect reason/code
-                            onEvent(WebSocketResult.Closing(reason))
-                            webSocket.close(1000, null)
-                        }
+                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                    Timber.d("⚠️ WebSocket closing: $reason")
+                    onEvent(WebSocketResult.Closing(reason))
+                    webSocket.close(1000, null)
+                }
 
-                        override fun onClosed(
-                            webSocket: WebSocket,
-                            code: Int,
-                            reason: String,
-                        ) {
-                            Timber.d("🔌 WebSocket closed: $reason")
-                            // @Thomas - BREAKPOINT HERE: WebSocket closed completely; log reason
-                            onEvent(WebSocketResult.Closed(reason))
-                        }
-                    },
-                )
-        }
-
-        fun send(message: String) {
-            if (webSocket != null) {
-                Timber.d("📤 Sending message: $message")
-                // @Thomas - BREAKPOINT HERE: Outgoing message; verify structure and content
-                webSocket?.send(message)
-            } else {
-                Timber.d("⚠️ WebSocket is not connected. Cannot send message.")
-                // @Thomas - BREAKPOINT HERE: Attempted to send while disconnected; check connection state
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                    Timber.d("🔌 WebSocket closed: $reason")
+                    onEvent(WebSocketResult.Closed(reason))
+                    handleReconnect()
+                }
             }
-        }
+        )
+    }
 
-        fun disconnect() {
-            webSocket?.close(1000, "Client disconnected")
-            webSocket = null
-            Timber.d("🔌 WebSocket manually disconnected.")
-            // @Thomas - BREAKPOINT HERE: Manual disconnect triggered; check if cleanup is needed
-            onEventCallback?.invoke(WebSocketResult.Disconnected)
-        }
+    private fun handleReconnect() {
+        if (!autoReconnect || reconnecting || lastToken == null) return
+        reconnecting = true
 
-        private fun onEvent(result: WebSocketResult) {
-            // @Thomas - BREAKPOINT HERE: Final dispatch of WebSocket event to ViewModel/UI
-            onEventCallback?.invoke(result)
+        Timber.d("🔁 Attempting to reconnect WebSocket...")
+
+        // Optional: Add delay or exponential backoff here if needed
+        connect(lastToken!!, onEventCallback ?: return)
+    }
+
+    fun send(message: String) {
+        if (webSocket != null) {
+            Timber.d("📤 Sending message: $message")
+            webSocket?.send(message)
+        } else {
+            Timber.d("⚠️ WebSocket is not connected. Cannot send message.")
         }
     }
+
+    fun disconnect() {
+        autoReconnect = false
+        reconnecting = false
+        webSocket?.close(1000, "Client disconnected")
+        webSocket = null
+        Timber.d("🔌 WebSocket manually disconnected.")
+        onEventCallback?.invoke(WebSocketResult.Disconnected)
+    }
+
+    fun isConnected(): Boolean {
+        return webSocket != null
+    }
+
+    fun enableAutoReconnect(enable: Boolean) {
+        autoReconnect = enable
+    }
+}

@@ -74,6 +74,7 @@ fun HomeScreen(
     var pendingOnlineRequest by remember { mutableStateOf(false) }
     var showRidePopup by remember { mutableStateOf(false) }
     var rideAccepted by remember { mutableStateOf(false) }
+    var isInitialized by remember { mutableStateOf(false) }
     var currentRideRequest by remember { mutableStateOf<RideRequestedResponse?>(null) }
 
     val context = LocalContext.current
@@ -91,6 +92,18 @@ fun HomeScreen(
             mapViewInstance?.let { mapView ->
                 // @Thomas - BREAKPOINT HERE: Current location loaded → map will center on this position
                 flyToLocation(mapView, location = location)
+            }
+        }
+    }
+
+    LaunchedEffect(isInitialized) {
+        if (!isInitialized) {
+            coroutineScope.launch {
+                isInitialized = true
+                viewModel.initialize()
+
+                val location = LocationTracker(context).getCurrentLocation()
+                currentLocation = location
             }
         }
     }
@@ -133,8 +146,8 @@ fun HomeScreen(
                 viewModel.goOnline(
                     latitude = location.first,
                     longitude = location.second,
-                    zoneId = null,
-                    rideTypeId = null,
+                    zoneId = zoneInfo!!.payload.zone.id,
+                    rideTypeId = zoneInfo!!.payload.zone.rideTypeIds.first(),
                 )
                 isOnline = true
             } else {
@@ -154,7 +167,6 @@ fun HomeScreen(
             isOnline = false
         } else {
             // @Thomas - BREAKPOINT HERE: Preparing to go online — permission + location will be fetched
-            viewModel.initialize()
             pendingOnlineRequest = true
         }
     }
@@ -207,21 +219,19 @@ fun HomeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (isOnline) {
-            ComposeMapView(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(fraction = 1f)
-                    .padding(bottom = 56.dp),
-                onMapReady = { mapView ->
-                    mapViewInstance = mapView
-                    enableLocationComponent(mapView)
-                    currentLocation?.let {
-                        flyToLocation(mapView, location = it)
-                    }
-                },
-            )
-        }
+        ComposeMapView(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(fraction = 1f)
+                .padding(bottom = 56.dp),
+            onMapReady = { mapView ->
+                mapViewInstance = mapView
+                enableLocationComponent(mapView)
+                currentLocation?.let {
+                    flyToLocation(mapView, location = it)
+                }
+            },
+        )
 
         Column(
             modifier = Modifier
