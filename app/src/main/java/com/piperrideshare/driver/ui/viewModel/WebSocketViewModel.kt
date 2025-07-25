@@ -55,6 +55,10 @@ class WebSocketViewModel
         private val _zoneInfo = MutableStateFlow<ZoneInfoResponse?>(null)
         val zoneInfo = _zoneInfo.asStateFlow()
 
+        // Ride Accepted Status
+        private val _rideAccepted = MutableStateFlow<Boolean>(false)
+        val rideAccepted = _rideAccepted.asStateFlow()
+
         /**
          * Initialize WebSocket connection on ViewModel creation
          *
@@ -121,6 +125,12 @@ class WebSocketViewModel
                             Timber.d("📨 WEBSOCKET: Action response - ${response.action} - Status: ${response.status}")
                             if (response.error.isNotEmpty()) {
                                 Timber.d("❌ WEBSOCKET: Action error - ${response.error}")
+                            }
+
+                            if (response.status == "success") {
+                                when (response.action) {
+                                    "accept_ride" -> _rideAccepted.value = true
+                                }
                             }
                         }
                         // Thomas Breakpoint: Set breakpoint here if getting unknown message types

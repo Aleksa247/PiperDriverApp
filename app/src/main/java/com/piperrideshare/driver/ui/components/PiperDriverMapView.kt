@@ -26,11 +26,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.mapbox.geojson.LineString
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.style.style
+import com.mapbox.maps.plugin.annotation.annotations
+import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManager
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.piperrideshare.driver.utils.LocationTracker
 import kotlinx.coroutines.launch
@@ -86,9 +90,9 @@ fun PiperDriverMapView(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .background(Color.Black.copy(alpha = 0.5f))
-                .padding(8.dp),
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 80.dp)
+                .background(Color.Black.copy(alpha = 0.5f)),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -213,4 +217,26 @@ suspend fun forceRefreshLocation(
         Toast.makeText(context, "Failed to get new location", Toast.LENGTH_SHORT).show()
         onLocationRefreshed(null)
     }
+}
+
+fun drawLineToDestination(
+    mapView: MapView,
+    currentLocation: Pair<Double, Double>,
+    destinationLocation: Pair<Double, Double>,
+) {
+    val annotationApi = mapView.annotations
+    val polylineManager = annotationApi.createPolylineAnnotationManager()
+
+    val currentPoint = Point.fromLngLat(currentLocation.second, currentLocation.first)
+    val pickupPoint = Point.fromLngLat(destinationLocation.second, destinationLocation.first)
+    val lineString = LineString.fromLngLats(listOf(currentPoint, pickupPoint))
+
+    polylineManager.deleteAll() // Optional: clear old lines
+
+    polylineManager.create(
+        PolylineAnnotationOptions()
+            .withPoints(lineString.coordinates())
+            .withLineColor("#3b9ddd")
+            .withLineWidth(4.0)
+    )
 }
