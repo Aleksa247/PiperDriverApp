@@ -5,6 +5,8 @@ import com.piperrideshare.driver.api.models.request.AcceptRideRequest
 import com.piperrideshare.driver.api.models.request.ArriveAtPickupRequest
 import com.piperrideshare.driver.api.models.request.CompleteRideRequest
 import com.piperrideshare.driver.api.models.request.GetActiveRideRequest
+import com.piperrideshare.driver.api.models.request.GetRideHistoryRequest
+import com.piperrideshare.driver.api.models.request.GoOfflineRequest
 import com.piperrideshare.driver.api.models.request.GoOnlineRequest
 import com.piperrideshare.driver.api.models.request.StartRideRequest
 import com.piperrideshare.driver.api.models.request.UpdateLocationRequest
@@ -90,5 +92,13 @@ constructor(
 
     override fun sendGetActiveRide() {
         sendRequest(GetActiveRideRequest())
+    }
+
+    override fun sendGetRideHistory(requestId: String) {
+        sendRequest(GetRideHistoryRequest(requestId))
+    }
+
+    override fun sendGoOffline() {
+        sendRequest(GoOfflineRequest())
     }
 }

@@ -73,11 +73,12 @@ object WebSocketResponseParser {
 
                 "ride_model_changed" -> {
                     Timber.d("🚕 WEBSOCKET: Ride model changed")
-                    val rideId = payload?.optString("ride_id")
-                    if (!rideId.isNullOrEmpty()) {
-                        RideModelChangedResponse(rideId)
-                    } else {
-                        Timber.e("❌ MISSING ride_id in ride_model_changed")
+
+                    return try {
+                        val response = gson.fromJson(payload!!.toString(), RideModelChangedResponse::class.java)
+                        response
+                    } catch (e: Exception) {
+                        Timber.e(e, "❌ Failed to parse RideModelChangedResponse")
                         UnknownResponse(json.toString())
                     }
                 }

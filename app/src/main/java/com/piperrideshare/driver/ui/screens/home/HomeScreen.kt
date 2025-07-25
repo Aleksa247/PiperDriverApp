@@ -3,26 +3,14 @@ package com.piperrideshare.driver.ui.screens.home
 import android.Manifest
 import android.os.Build
 import android.widget.Toast
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -40,18 +28,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mapbox.maps.MapView
 import com.piperrideshare.driver.api.models.response.websocket.RideRequestedResponse
-import com.piperrideshare.driver.ui.components.PiperDriverButton
-import com.piperrideshare.driver.ui.components.PiperDriverMapView
-import com.piperrideshare.driver.ui.components.RideRequestPopup
 import com.piperrideshare.driver.ui.components.addPickupMarker
 import com.piperrideshare.driver.ui.components.clearPickupMarker
-import com.piperrideshare.driver.ui.components.drawLineToDestination
-import com.piperrideshare.driver.ui.components.enableLocationComponent
 import com.piperrideshare.driver.ui.components.flyToLocation
+import com.piperrideshare.driver.ui.screens.account.AccountScreen
+import com.piperrideshare.driver.ui.screens.activity.ActivityScreen
 import com.piperrideshare.driver.ui.viewModel.WebSocketViewModel
 import com.piperrideshare.driver.utils.LocationTracker
 import com.piperrideshare.driver.utils.PermissionHandler
@@ -70,6 +54,9 @@ fun HomeScreen(
     onLogout: () -> Unit,
     viewModel: WebSocketViewModel = hiltViewModel(),
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     var isOnline by remember { mutableStateOf(false) }
     var currentLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
     var pendingOnlineRequest by remember { mutableStateOf(false) }
@@ -77,9 +64,7 @@ fun HomeScreen(
     var isInitialized by remember { mutableStateOf(false) }
     var currentRideRequest by remember { mutableStateOf<RideRequestedResponse?>(null) }
     var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
-
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+    var lastZoneName by remember { mutableStateOf<String?>(null) }
 
     val rideRequest by viewModel.rideRequest.collectAsState()
     val driverModel by viewModel.driverModel.collectAsState()
@@ -91,7 +76,6 @@ fun HomeScreen(
     LaunchedEffect(currentLocation, mapViewInstance) {
         currentLocation?.let { location ->
             mapViewInstance?.let { mapView ->
-                // @Thomas - BREAKPOINT HERE: Current location loaded → map will center on this position
                 flyToLocation(mapView, location = location)
             }
         }
@@ -102,7 +86,6 @@ fun HomeScreen(
             coroutineScope.launch {
                 isInitialized = true
                 viewModel.initialize()
-
                 val location = LocationTracker(context).getCurrentLocation()
                 currentLocation = location
             }
@@ -112,27 +95,20 @@ fun HomeScreen(
     if (isOnline && currentRideRequest == null) {
         LaunchedEffect(rideRequest) {
             Timber.d("🔄 RIDE STATE: New rideRequest received = ${rideRequest?.rideId}, Current = ${currentRideRequest?.rideId}")
-            // @Thomas - BREAKPOINT HERE: Triggered on every new rideRequest change while online
 
             if (rideRequest != null && currentRideRequest == null) {
-                // @Thomas - BREAKPOINT HERE: New ride popup will show now
                 currentRideRequest = rideRequest
                 showRidePopup = true
-
                 mapViewInstance?.let { mapView ->
                     rideRequest?.pickupLocation?.let { location ->
-                        // @Thomas - BREAKPOINT HERE: Pickup marker added and camera moved to pickup
-                        addPickupMarker(mapView, location.latitude, location.longitude)
                         flyToLocation(mapView, latitude = location.latitude, longitude = location.longitude)
                     }
                 }
             } else if (rideRequest == null) {
                 mapViewInstance?.let {
-                    // @Thomas - BREAKPOINT HERE: No ride from server; remove pickup marker
                     clearPickupMarker()
                 }
             } else {
-                // @Thomas - BREAKPOINT HERE: Skipping because a ride is already active
                 Timber.d("🚫 Ignoring new ride request because a ride is already in progress.")
             }
         }
@@ -142,7 +118,6 @@ fun HomeScreen(
         coroutineScope.launch {
             val location = LocationTracker(context).getCurrentLocation()
             if (location != null) {
-                // @Thomas - BREAKPOINT HERE: Successfully went online with location; socket connect happens
                 currentLocation = location
                 viewModel.goOnline(
                     latitude = location.first,
@@ -152,7 +127,6 @@ fun HomeScreen(
                 )
                 isOnline = true
             } else {
-                // @Thomas - BREAKPOINT HERE: Failed to get location
                 Toast.makeText(context, "Unable to get current location", Toast.LENGTH_SHORT).show()
                 pendingOnlineRequest = false
             }
@@ -161,46 +135,36 @@ fun HomeScreen(
 
     fun toggleOnline() {
         if (isOnline) {
-            // @Thomas - BREAKPOINT HERE: Went offline manually
             currentRideRequest = null
-            viewModel.disconnect()
+            viewModel.goOffline()
             isOnline = false
         } else {
-            // @Thomas - BREAKPOINT HERE: Preparing to go online — permission + location will be fetched
             pendingOnlineRequest = true
         }
     }
 
     fun handleLogout() {
         coroutineScope.launch {
-            // @Thomas - BREAKPOINT HERE: Clear Session and Logout
             viewModel.clearSession()
             viewModel.disconnect()
             onLogout()
         }
     }
 
-    fun handleAcceptRide(rideId: String) {
+    fun handleAcceptRide() {
         coroutineScope.launch {
-            // @Thomas - BREAKPOINT HERE: Ride accepted from popup
-            viewModel.acceptRide(rideId)
-            // onNavigateToRideDetail(rideId)
+            viewModel.acceptRide(currentRideRequest!!.rideId)
         }
     }
 
-    fun handleDeclineRide(rideId: String) {
+    fun handleDeclineRide() {
         coroutineScope.launch {
-            // @Thomas - BREAKPOINT HERE: Ride declined from popup
-            viewModel.declineRide(rideId)
+            viewModel.declineRide(currentRideRequest!!.rideId)
         }
     }
 
     if (pendingOnlineRequest) {
-        val permissions =
-            mutableListOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-            )
-
+        val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -218,137 +182,50 @@ fun HomeScreen(
         )
     }
 
-    zoneInfo?.payload?.zone?.let { zone ->
-        Toast.makeText(
-            LocalContext.current,
-            "Zone Updated. Operational zone updated to ${zone.name}",
-            Toast.LENGTH_LONG
-        ).show()
+    LaunchedEffect(zoneInfo?.payload?.zone?.name) {
+        val newZone = zoneInfo?.payload?.zone?.name
+        if (newZone != null && newZone != lastZoneName) {
+            lastZoneName = newZone
+            Toast.makeText(context, "Zone Updated. Operational zone: $newZone", Toast.LENGTH_LONG).show()
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        PiperDriverMapView(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(fraction = 1f)
-                .padding(bottom = 56.dp),
-            onMapReady = { mapView ->
-                mapViewInstance = mapView
-                enableLocationComponent(mapView)
-                currentLocation?.let {
-                    flyToLocation(mapView, location = it)
-                }
-            },
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .padding(bottom = 56.dp), // add bottom padding for bottom nav
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            driverModel?.driverId?.let {
-                Text("Driver ID: $it", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.height(8.dp))
+        when (selectedTab) {
+            is BottomNavItem.Home -> {
+                HomeTabContent(
+                    viewModel = viewModel,
+                    showOnlineOfflineToggleButton = zoneInfo != null,
+                    isOnline = isOnline,
+                    onToggleOnline = { toggleOnline() },
+                    onAcceptRide = { handleAcceptRide() },
+                    onDeclineRide = { handleDeclineRide() },
+                    currentRideRequest = currentRideRequest,
+                    showRidePopup = showRidePopup,
+                    onPopupDismiss = {
+                        showRidePopup = false
+                        currentRideRequest = null
+                        clearPickupMarker()
+                    },
+                    setShowRidePopup = { showRidePopup = it },
+                    setCurrentRideRequest = { currentRideRequest = it },
+                    mapViewInstance = mapViewInstance,
+                    setMapViewInstance = { mapViewInstance = it },
+                    currentLocation = currentLocation,
+                    rideAccepted = rideAccepted
+                )
             }
 
-            if (zoneInfo != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    PiperDriverButton(
-                        text = if (isOnline) "Go Offline" else "Go Online",
-                        modifier = Modifier.weight(1f),
-                        onClick = { toggleOnline() },
-                    )
-
-                    PiperDriverButton(
-                        text = "Logout",
-                        modifier = Modifier.wrapContentWidth(),
-                        onClick = { handleLogout() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Red,
-                            contentColor = Color.White,
-                        ),
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (isOnline) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
-                    ),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Status: Online", style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            if (rideAccepted) "Ride accepted..." else "Waiting for ride requests...",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-
-                        if (rideAccepted) {
-                            // @Thomas - BREAKPOINT HERE: New ride received and accepted
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text("🚗 New Ride ID: ${currentRideRequest?.rideId}", style = MaterialTheme.typography.bodyLarge)
-
-                            currentRideRequest?.pickupLocation?.let { pickup ->
-                                mapViewInstance?.let { map ->
-                                    val pickupLocation = Pair(pickup.longitude, pickup.longitude)
-                                    drawLineToDestination(map, currentLocation = currentLocation!!, pickupLocation)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (showRidePopup && currentRideRequest != null) {
-            RideRequestPopup(
-                rideRequest = currentRideRequest!!,
-                onAccept = {
-                    Timber.d("✅ POPUP ACCEPT: Accept clicked - ID: ${currentRideRequest?.rideId}")
-                    // @Thomas - BREAKPOINT HERE: Ride popup accepted
-                    handleAcceptRide(currentRideRequest!!.rideId)
-                    showRidePopup = false
-                },
-                onDecline = {
-                    Timber.d("❌ POPUP DECLINE: Decline clicked - ID: ${currentRideRequest?.rideId}")
-                    // @Thomas - BREAKPOINT HERE: Ride popup declined
-                    handleDeclineRide(currentRideRequest!!.rideId)
-                    showRidePopup = false
-                    currentRideRequest = null
-                    clearPickupMarker()
-                },
-                onDismiss = {
-                    Timber.d("🚫 POPUP DISMISS: Dismissed - ID: ${currentRideRequest?.rideId}")
-                    // @Thomas - BREAKPOINT HERE: Ride popup dismissed
-                    showRidePopup = false
-                    currentRideRequest = null
-                    clearPickupMarker()
-                },
-            )
+            is BottomNavItem.Activity -> ActivityScreen()
+            is BottomNavItem.Account -> AccountScreen()
         }
 
         NavigationBar(
             containerColor = Color.White,
             contentColor = Color.Black,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
         ) {
-            listOf(
-                BottomNavItem.Home,
-                BottomNavItem.Activity,
-                BottomNavItem.Account,
-            ).forEach { item ->
+            listOf(BottomNavItem.Home, BottomNavItem.Activity, BottomNavItem.Account).forEach { item ->
                 NavigationBarItem(
                     selected = selectedTab == item,
                     onClick = { selectedTab = item },
@@ -371,7 +248,7 @@ fun HomeScreen(
                         unselectedIconColor = Color.Gray,
                         selectedTextColor = Color.Black,
                         unselectedTextColor = Color.Gray,
-                        indicatorColor = Color.Transparent // no highlight behind selected item
+                        indicatorColor = Color.Transparent
                     )
                 )
             }
