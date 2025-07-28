@@ -30,6 +30,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.toColorInt
+import com.mapbox.api.directions.v5.DirectionsCriteria
+import com.mapbox.api.directions.v5.MapboxDirections
+import com.mapbox.api.directions.v5.models.DirectionsResponse
+import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.geojson.LineString
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
@@ -42,8 +46,13 @@ import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManager
 import com.mapbox.maps.plugin.locationcomponent.location
+import com.piperrideshare.driver.R
 import com.piperrideshare.driver.utils.LocationTracker
 import kotlinx.coroutines.launch
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import timber.log.Timber
 
 private var hasPickupMarker = false
 
@@ -251,35 +260,64 @@ suspend fun forceRefreshLocation(
     }
 }
 
-fun drawLineToDestination(
+fun drawRouteToDestination(
+    context: Context,
     mapView: MapView,
     destinationMarkerColor: String,
     currentLocation: Pair<Double, Double>,
-    destinationLocation: Pair<Double, Double>,
+    destinationLocation: Pair<Double, Double>
 ) {
-    val annotationApi = mapView.annotations
+    val origin = Point.fromLngLat(currentLocation.second, currentLocation.first)
+    val destination = Point.fromLngLat(destinationLocation.second, destinationLocation.first)
 
-    // Clear previous polylines and markers
-    annotationApi.cleanup()
+    val client = MapboxDirections.builder()
+        .routeOptions(
+            RouteOptions.builder()
+                .coordinatesList(listOf(
+                    origin,
+                    destination
+                ))
+                .profile(DirectionsCriteria.PROFILE_DRIVING_TRAFFIC)
+                .overview(DirectionsCriteria.OVERVIEW_FULL)
+                .build()
+        )
+        .accessToken(context.getString(R.string.mapbox_access_token))
+        .build()
 
-    // Polyline
-    val polylineManager = annotationApi.createPolylineAnnotationManager()
-    val currentPoint = Point.fromLngLat(currentLocation.second, currentLocation.first)
-    val destinationPoint = Point.fromLngLat(destinationLocation.second, destinationLocation.first)
-    val lineString = LineString.fromLngLats(listOf(currentPoint, destinationPoint))
+    client.enqueueCall(object : Callback<DirectionsResponse> {
+        override fun onResponse(
+            call: Call<DirectionsResponse>,
+            response: Response<DirectionsResponse>
+        ) {
+            val body = response.body()
+            if (body == null || body.routes().isEmpty()) {
+                Timber.d("No route found.")
+                return
+            }
 
-    polylineManager.create(
-        PolylineAnnotationOptions()
-            .withPoints(lineString.coordinates())
-            .withLineColor("#3b9ddd")
-            .withLineWidth(4.0)
-    )
+            val route = body.routes()[0]
+            val geometry = route.geometry() ?: return
+            val routeLine = LineString.fromPolyline(geometry, 6)
 
-    addPickupMarker(
-        mapView,
-        destinationMarkerColor,
-        destinationLocation.first,
-        destinationLocation.second
-    )
+            val polylineManager = mapView.annotations.createPolylineAnnotationManager()
+            polylineManager.deleteAll()
+
+            polylineManager.create(
+                PolylineAnnotationOptions()
+                    .withPoints(routeLine.coordinates())
+                    .withLineColor("#3b9ddd")
+                    .withLineWidth(5.0)
+            )
+            addPickupMarker(
+                mapView,
+                destinationMarkerColor,
+                destinationLocation.first,
+                destinationLocation.second
+            )
+        }
+
+        override fun onFailure(call: Call<DirectionsResponse>, t: Throwable) {
+            Timber.e("Route call failed: ${t.localizedMessage}")
+        }
+    })
 }
-

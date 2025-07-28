@@ -1,5 +1,6 @@
 package com.piperrideshare.driver.ui.screens.home
 
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +15,7 @@ import com.piperrideshare.driver.ui.viewModel.WebSocketViewModel
 
 @Composable
 fun HomeTabContent(
+    context: Context,
     viewModel: WebSocketViewModel,
     showOnlineOfflineToggleButton: Boolean,
     isOnline: Boolean,
@@ -124,7 +126,8 @@ fun HomeTabContent(
             val destinationLng = destination?.longitude
 
             if (destinationLat != null && destinationLng != null) {
-                drawLineToDestination(
+                drawRouteToDestination(
+                    context = context,
                     mapView = mapViewInstance,
                     destinationMarkerColor = "#FF0000",
                     currentLocation = currentLocation,

@@ -194,6 +194,7 @@ fun HomeScreen(
         when (selectedTab) {
             is BottomNavItem.Home -> {
                 HomeTabContent(
+                    context,
                     viewModel = viewModel,
                     showOnlineOfflineToggleButton = zoneInfo != null,
                     isOnline = isOnline,
