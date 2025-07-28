@@ -58,7 +58,7 @@ android {
             isMinifyEnabled = false
             isDebuggable = true
 
-            buildConfigField("String", "DEFAULT_EMAIL", "\"john.smith@thepiper.co\"")
+            buildConfigField("String", "DEFAULT_EMAIL", "\"emma.wilson@thepiper.co\"")
             buildConfigField("String", "DEFAULT_PASSWORD", "\"Test@123\"")
         }
     }

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.UUID
 import javax.inject.Inject
 
 /**
@@ -54,6 +55,10 @@ class WebSocketViewModel
         // Zone information state
         private val _zoneInfo = MutableStateFlow<ZoneInfoResponse?>(null)
         val zoneInfo = _zoneInfo.asStateFlow()
+
+        // Ride Accepted Status
+        private val _rideAccepted = MutableStateFlow<Boolean>(false)
+        val rideAccepted = _rideAccepted.asStateFlow()
 
         /**
          * Initialize WebSocket connection on ViewModel creation
@@ -122,6 +127,12 @@ class WebSocketViewModel
                             if (response.error.isNotEmpty()) {
                                 Timber.d("❌ WEBSOCKET: Action error - ${response.error}")
                             }
+
+                            if (response.status == "success") {
+                                when (response.action) {
+                                    "accept_ride" -> _rideAccepted.value = true
+                                }
+                            }
                         }
                         // Thomas Breakpoint: Set breakpoint here if getting unknown message types
                         is UnknownResponse -> {
@@ -140,7 +151,10 @@ class WebSocketViewModel
          * the WebSocket connection.
          */
         fun disconnect() {
-            repository.disconnect()
+            viewModelScope.launch {
+                goOffline()
+                repository.disconnect()
+            }
         }
 
         /**
@@ -307,5 +321,31 @@ class WebSocketViewModel
             // This requests information about the currently active ride
             Timber.d("📋 WEBSOCKET: Requesting active ride information")
             repository.sendGetActiveRide()
+        }
+
+        /**
+         * Request to go offline
+         *
+         * Used to go offline.
+         */
+        fun goOffline() {
+            // @Thomas - BREAKPOINT HERE: Getting active ride info
+            // This requests information about the currently active ride
+            Timber.d("📋 WEBSOCKET: Go Offline")
+            repository.sendGoOffline()
+        }
+
+        /**
+         * Sends a WebSocket request to fetch the driver's ride history.
+         *
+         * This function generates a unique requestId and constructs a
+         * `GetRideHistoryRequest`, which is then sent to the server.
+         *
+         * Expected server response: A list of previous rides.
+         */
+        fun goRideHistory() {
+            val requestId = UUID.randomUUID().toString()
+            Timber.d("📋 WEBSOCKET: Fetching ride history (requestId = $requestId)")
+            repository.sendGetRideHistory(requestId)
         }
     }

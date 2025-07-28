@@ -51,8 +51,10 @@ data class ZoneBound(
 )
 
 data class CenterLocation(
-    val Type: String,
-    val Coordinates: List<Double>,
+    @SerializedName("Type")
+    val type: String,
+    @SerializedName("Coordinates")
+    val coordinates: List<Double>,
 )
 
 data class VehicleType(
@@ -62,11 +64,11 @@ data class VehicleType(
     @SerializedName("is_active")
     val isActive: Boolean,
     @SerializedName("base_fare")
-    val baseFare: Int,
+    val baseFare: Double,
     @SerializedName("fare_per_mile")
-    val farePerMile: Int,
+    val farePerMile: Double,
     @SerializedName("fare_per_minute")
-    val farePerMinute: Int,
+    val farePerMinute: Double,
     @SerializedName("min_vehicle_year")
     val minVehicleYear: Int,
     @SerializedName("required_features")

@@ -19,7 +19,6 @@ import timber.log.Timber
 object WebSocketResponseParser {
     private val gson = Gson()
 
-    // Thomas Breakpoint: Set breakpoint here to see all incoming WebSocket messages
     fun parse(json: JSONObject): WebSocketResponse {
         val type = json.optString("type")
         val action = json.optString("action")
@@ -28,124 +27,75 @@ object WebSocketResponseParser {
         val error = json.optString("error")
 
         return when (type) {
-            "notification" ->
-                when (action) {
-                    "ride_requested" -> {
-                        // T@Thomas - BREAKPOINT HERE: Incoming ride request WebSocket notification
-                        // This is where ride requests are parsed from WebSocket messages
-                        Timber.d("🚗 WEBSOCKET PARSER: Parsing incoming ride request notification")
-                        try {
-                            val rideRequestResponse = gson.fromJson(json.toString(), RideRequestedResponse::class.java)
-                            Timber.d("✅ RIDE REQUEST PARSED: ID=${rideRequestResponse.rideId}, Fare=${rideRequestResponse.estimatedFare}")
-                            RideRequestedResponse(
-                                rideId = rideRequestResponse.rideId,
-                                pickupLocation = rideRequestResponse.pickupLocation,
-                                dropoffLocation = rideRequestResponse.dropoffLocation,
-                                estimatedFare = rideRequestResponse.estimatedFare,
-                                estimatedDistance = rideRequestResponse.estimatedDistance,
-                                estimatedDuration = rideRequestResponse.estimatedDuration,
-                                riderName = rideRequestResponse.riderName,
-                                rideType = rideRequestResponse.rideType,
-                                requestTime = rideRequestResponse.requestTime,
-                            )
-                        } catch (e: Exception) {
-                            Timber.e("❌ RIDE REQUEST PARSE ERROR: ${e.message}")
-                            // Fallback to simple ride ID parsing
-                            val rideId = payload?.optString("ride_id")
-                            if (rideId != null) RideRequestedResponse(rideId) else UnknownResponse(json.toString())
-                        }
+            "notification" -> when (action) {
+                "ride_requested" -> {
+                        Timber.d("🚗 WEBSOCKET: Parsing incoming ride request")
+                    try {
+                    if (payload != null) {
+                        // Parse only the payload JSON object into RideRequestedResponse
+                        gson.fromJson(payload.toString(), RideRequestedResponse::class.java)
+                    } else {
+                        Timber.e("❌ ride_requested payload is null")
+                        UnknownResponse(json.toString())
                     }
-                    // Thomas Breakpoint: Set breakpoint here to debug zone info parsing
-                    "zone_info" -> {
-                        //                                                                          @Thomas - BREAKPOINT HERE: Zone info notification received
-                        // Parse zone information from WebSocket payload
-                        try {
-                            val zoneInfoResponse = gson.fromJson(json.toString(), ZoneInfoResponse::class.java)
-                            ZoneInfoResponse(zoneInfoResponse.type, zoneInfoResponse.action, zoneInfoResponse.payload)
-                        } catch (e: Exception) {
-                            Timber.e("❌ ZONE INFO PARSE ERROR: ${e.message}")
-                            UnknownResponse(json.toString())
-                        }
+                } catch (e: Exception) {
+                    Timber.e("❌ RIDE REQUEST PARSE ERROR: ${e.message}")
+                    val rideId = payload?.optString("rideId")
+                    if (rideId != null) RideRequestedResponse(rideId)
+                    else UnknownResponse(json.toString())
+                }
+            }
+
+                "zone_info" -> {
+                    Timber.d("📍 WEBSOCKET: Parsing zone info")
+                    try {
+                        gson.fromJson(json.toString(), ZoneInfoResponse::class.java)
+                    } catch (e: Exception) {
+                        Timber.e("❌ ZONE INFO PARSE ERROR: ${e.message}")
+                        UnknownResponse(json.toString())
                     }
-                    // Thomas Breakpoint: Set breakpoint here if getting unknown notification types
-                    else -> UnknownResponse(json.toString())
                 }
 
-            "model_update" ->
-                when (action) {
-                    "driver_model_changed" -> {
-                        // Thomas Breakpoint: TEMPORARY - Also create fake ride request for testing popup
-                        // @Thomas - Remove this when backend sends proper ride_requested notifications
-                        Timber.d("🚨 TEMPORARY: Creating fake ride request from driver_model_changed for popup testing")
+                else -> UnknownResponse(json.toString())
+            }
 
-                        // Create a test ride request to trigger the popup
-                        RideRequestedResponse(
-                            rideId = "TEST_POPUP_${System.currentTimeMillis()}",
-                            pickupLocation =
-                                com.piperrideshare.driver.api.models.response.websocket.Location(
-                                    latitude = 33.4942,
-                                    longitude = -111.9261,
-                                    address = "Scottsdale Fashion Square, Scottsdale, AZ",
-                                ),
-                            dropoffLocation =
-                                com.piperrideshare.driver.api.models.response.websocket.Location(
-                                    latitude = 33.4484,
-                                    longitude = -112.0740,
-                                    address = "Phoenix Sky Harbor Airport, Phoenix, AZ",
-                                ),
-                            estimatedFare = 45.50,
-                            estimatedDistance = 12.5,
-                            estimatedDuration = 18,
-                            riderName = "John Doe",
-                            rideType = "standard",
-                            requestTime = "2025-07-16T01:27:07Z",
-                        )
+            "model_update" -> when (action) {
+                "driver_model_changed" -> {
+                    Timber.d("👤 WEBSOCKET: Driver model changed")
+                    val driverId = payload?.optString("driver_id")
+                    if (!driverId.isNullOrEmpty()) {
+                        DriverModelChangedResponse(driverId)
+                    } else {
+                        Timber.e("❌ MISSING driver_id in driver_model_changed")
+                        UnknownResponse(json.toString())
                     }
-                    "ride_model_changed" -> {
-                        val id = payload?.optString("id")
-                        if (id != null) RideModelChangedResponse(id) else UnknownResponse(json.toString())
-                    }
-                    else -> UnknownResponse(json.toString())
                 }
 
-            "response" ->
-                when (action) {
-                    // Thomas Breakpoint: Set breakpoint here to debug go_online responses
-                    "go_online" -> {
-                        // @Thomas - BREAKPOINT HERE: Go online response received
-                        Timber.d("🌐 WEBSOCKET: Go online response - Status: $status")
-                        if (error.isNotEmpty()) {
-                            Timber.e("❌ WEBSOCKET: Go online error - $error")
-                        } else {
-                            Timber.d("✅ WEBSOCKET: Go online successful")
-                        }
-                        // Create a response object for go_online
-                        ActionResponse(type, action, status, error, payload)
+                "ride_model_changed" -> {
+                    Timber.d("🚕 WEBSOCKET: Ride model changed")
+
+                    return try {
+                        val response = gson.fromJson(payload!!.toString(), RideModelChangedResponse::class.java)
+                        response
+                    } catch (e: Exception) {
+                        Timber.e(e, "❌ Failed to parse RideModelChangedResponse")
+                        UnknownResponse(json.toString())
                     }
-                    "update_location" -> {
-                        Timber.d("📍 WEBSOCKET: Update location response - Status: $status")
-                        ActionResponse(type, action, status, error, payload)
-                    }
-                    "accept_ride" -> {
-                        Timber.d("✅ WEBSOCKET: Accept ride response - Status: $status")
-                        ActionResponse(type, action, status, error, payload)
-                    }
-                    "arrive_at_pickup" -> {
-                        Timber.d("🚗 WEBSOCKET: Arrive at pickup response - Status: $status")
-                        ActionResponse(type, action, status, error, payload)
-                    }
-                    "start_ride" -> {
-                        Timber.d("🚀 WEBSOCKET: Start ride response - Status: $status")
-                        ActionResponse(type, action, status, error, payload)
-                    }
-                    "complete_ride" -> {
-                        Timber.d("🏁 WEBSOCKET: Complete ride response - Status: $status")
-                        ActionResponse(type, action, status, error, payload)
-                    }
-                    else -> UnknownResponse(json.toString())
                 }
 
-            // Thomas Breakpoint: Set breakpoint here if getting unknown message types
+                else -> UnknownResponse(json.toString())
+            }
+
+            "response" -> when (action) {
+                "go_online", "update_location", "accept_ride",
+                "arrive_at_pickup", "start_ride", "complete_ride" -> {
+                    Timber.d("✅ WEBSOCKET: $action response - Status: $status")
+                    ActionResponse(type, action, status, error, payload)
+                }
+
+                else -> UnknownResponse(json.toString())
+            }
+
             else -> UnknownResponse(json.toString())
         }
     }

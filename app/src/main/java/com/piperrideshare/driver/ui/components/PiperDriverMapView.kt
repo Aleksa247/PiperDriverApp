@@ -1,6 +1,8 @@
 package com.piperrideshare.driver.ui.components
 
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -26,28 +28,62 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.toColorInt
+import com.mapbox.geojson.LineString
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.style.style
+import com.mapbox.maps.plugin.annotation.annotations
+import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManager
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.piperrideshare.driver.utils.LocationTracker
 import kotlinx.coroutines.launch
 
-// Simple marker state tracking
 private var hasPickupMarker = false
 
 fun addPickupMarker(
     mapView: MapView,
+    destinationMarkerColor: String,
     latitude: Double,
     longitude: Double,
 ) {
-    // For now, just fly to the pickup location
-    // @Thomas - Add proper marker when annotation plugin is available
-    flyToLocation(mapView, latitude = latitude, longitude = longitude)
+    val annotationApi = mapView.annotations
+    val pointAnnotationManager = annotationApi.createPointAnnotationManager()
+
+    val markerSize = 40 // px
+    val bitmap = createBitmap(markerSize, markerSize)
+    val canvas = Canvas(bitmap)
+
+    val paint = Paint().apply {
+        isAntiAlias = true
+        color = destinationMarkerColor.toColorInt()
+        style = Paint.Style.FILL
+    }
+
+    val centerX = markerSize / 2f
+    val centerY = markerSize / 2f
+    val radius = markerSize / 2f
+
+    canvas.drawCircle(centerX, centerY, radius, paint)
+
+    val point = Point.fromLngLat(longitude, latitude)
+    val pointAnnotationOptions = PointAnnotationOptions()
+        .withPoint(point)
+        .withIconImage(bitmap)
+
+    pointAnnotationManager.deleteAll() // Optional: clear old markers
+    pointAnnotationManager.create(pointAnnotationOptions)
+
+    flyToLocation(mapView, latitude, longitude)
     hasPickupMarker = true
 }
+
 
 fun clearPickupMarker() {
     hasPickupMarker = false
@@ -86,9 +122,9 @@ fun PiperDriverMapView(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .background(Color.Black.copy(alpha = 0.5f))
-                .padding(8.dp),
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 80.dp)
+                .background(Color.Black.copy(alpha = 0.5f)),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -214,3 +250,36 @@ suspend fun forceRefreshLocation(
         onLocationRefreshed(null)
     }
 }
+
+fun drawLineToDestination(
+    mapView: MapView,
+    destinationMarkerColor: String,
+    currentLocation: Pair<Double, Double>,
+    destinationLocation: Pair<Double, Double>,
+) {
+    val annotationApi = mapView.annotations
+
+    // Clear previous polylines and markers
+    annotationApi.cleanup()
+
+    // Polyline
+    val polylineManager = annotationApi.createPolylineAnnotationManager()
+    val currentPoint = Point.fromLngLat(currentLocation.second, currentLocation.first)
+    val destinationPoint = Point.fromLngLat(destinationLocation.second, destinationLocation.first)
+    val lineString = LineString.fromLngLats(listOf(currentPoint, destinationPoint))
+
+    polylineManager.create(
+        PolylineAnnotationOptions()
+            .withPoints(lineString.coordinates())
+            .withLineColor("#3b9ddd")
+            .withLineWidth(4.0)
+    )
+
+    addPickupMarker(
+        mapView,
+        destinationMarkerColor,
+        destinationLocation.first,
+        destinationLocation.second
+    )
+}
+
