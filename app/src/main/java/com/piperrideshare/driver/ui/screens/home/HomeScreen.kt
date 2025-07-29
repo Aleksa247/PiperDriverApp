@@ -31,8 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mapbox.maps.MapView
 import com.piperrideshare.driver.api.models.response.websocket.RideRequestedResponse
-import com.piperrideshare.driver.ui.components.addPickupMarker
-import com.piperrideshare.driver.ui.components.clearPickupMarker
+import com.piperrideshare.driver.ui.components.clearPickupMarkerAndRouteLine
 import com.piperrideshare.driver.ui.components.flyToLocation
 import com.piperrideshare.driver.ui.screens.account.AccountScreen
 import com.piperrideshare.driver.ui.screens.activity.ActivityScreen
@@ -70,6 +69,11 @@ fun HomeScreen(
     val driverModel by viewModel.driverModel.collectAsState()
     val zoneInfo by viewModel.zoneInfo.collectAsState()
     val rideAccepted by viewModel.rideAccepted.collectAsState()
+    val arrivedAtPickupPoint by viewModel.arrivedAtPickupPoint.collectAsState()
+    val rideStarted by viewModel.rideStarted.collectAsState()
+    val rideCompleted by viewModel.rideCompleted.collectAsState()
+    val showLoading by viewModel.showLoading.collectAsState()
+    val showLoadingText by viewModel.showLoadingText.collectAsState()
 
     var selectedTab by remember { mutableStateOf<BottomNavItem>(BottomNavItem.Home) }
 
@@ -77,6 +81,20 @@ fun HomeScreen(
         currentLocation?.let { location ->
             mapViewInstance?.let { mapView ->
                 flyToLocation(mapView, location = location)
+            }
+        }
+    }
+
+    if (isOnline) {
+        LaunchedEffect(Unit) {
+            val locationTracker = LocationTracker(context)
+            locationTracker.startLocationUpdates { location ->
+                Timber.d("📍 LOCATION UPDATE: ${location.latitude}, ${location.longitude}")
+                currentLocation = location.latitude to location.longitude
+                viewModel.updateLocation(
+                    latitude = location.latitude,
+                    longitude = location.longitude
+                )
             }
         }
     }
@@ -104,9 +122,15 @@ fun HomeScreen(
                         flyToLocation(mapView, latitude = location.latitude, longitude = location.longitude)
                     }
                 }
+
+                val location = LocationTracker(context).getCurrentLocation()
+                viewModel.updateLocation(
+                    latitude = location!!.first,
+                    longitude = location.second
+                )
             } else if (rideRequest == null) {
                 mapViewInstance?.let {
-                    clearPickupMarker()
+                    clearPickupMarkerAndRouteLine()
                 }
             } else {
                 Timber.d("🚫 Ignoring new ride request because a ride is already in progress.")
@@ -206,14 +230,19 @@ fun HomeScreen(
                     onPopupDismiss = {
                         showRidePopup = false
                         currentRideRequest = null
-                        clearPickupMarker()
+                        clearPickupMarkerAndRouteLine()
                     },
                     setShowRidePopup = { showRidePopup = it },
                     setCurrentRideRequest = { currentRideRequest = it },
                     mapViewInstance = mapViewInstance,
                     setMapViewInstance = { mapViewInstance = it },
                     currentLocation = currentLocation,
-                    rideAccepted = rideAccepted
+                    showLoading = showLoading,
+                    showLoadingText = showLoadingText,
+                    rideAccepted = rideAccepted,
+                    arrivedAtPickupPoint = arrivedAtPickupPoint,
+                    rideStarted = rideStarted,
+                    rideCompleted = rideCompleted
                 )
             }
 

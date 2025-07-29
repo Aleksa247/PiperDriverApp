@@ -41,11 +41,14 @@ import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.style.style
 import com.mapbox.maps.plugin.annotation.annotations
+import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManager
 import com.mapbox.maps.plugin.locationcomponent.location
+import com.mapbox.turf.TurfMeasurement
 import com.piperrideshare.driver.R
 import com.piperrideshare.driver.utils.LocationTracker
 import kotlinx.coroutines.launch
@@ -54,7 +57,8 @@ import retrofit2.Callback
 import retrofit2.Response
 import timber.log.Timber
 
-private var hasPickupMarker = false
+private var pickupMarkerManager: PointAnnotationManager? = null
+private var routeLineManager: PolylineAnnotationManager? = null
 
 fun addPickupMarker(
     mapView: MapView,
@@ -63,7 +67,8 @@ fun addPickupMarker(
     longitude: Double,
 ) {
     val annotationApi = mapView.annotations
-    val pointAnnotationManager = annotationApi.createPointAnnotationManager()
+    clearPickupMarkerAndRouteLine()
+    pickupMarkerManager = annotationApi.createPointAnnotationManager()
 
     val markerSize = 40 // px
     val bitmap = createBitmap(markerSize, markerSize)
@@ -86,16 +91,18 @@ fun addPickupMarker(
         .withPoint(point)
         .withIconImage(bitmap)
 
-    pointAnnotationManager.deleteAll() // Optional: clear old markers
-    pointAnnotationManager.create(pointAnnotationOptions)
+    pickupMarkerManager?.create(pointAnnotationOptions)
 
     flyToLocation(mapView, latitude, longitude)
-    hasPickupMarker = true
 }
 
-
-fun clearPickupMarker() {
-    hasPickupMarker = false
+fun clearPickupMarkerAndRouteLine() {
+    try {
+        pickupMarkerManager?.deleteAll()
+        routeLineManager?.deleteAll()
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
 }
 
 @Composable
@@ -300,6 +307,7 @@ fun drawRouteToDestination(
             val routeLine = LineString.fromPolyline(geometry, 6)
 
             val polylineManager = mapView.annotations.createPolylineAnnotationManager()
+            clearPickupMarkerAndRouteLine()
             polylineManager.deleteAll()
 
             polylineManager.create(
@@ -320,4 +328,14 @@ fun drawRouteToDestination(
             Timber.e("Route call failed: ${t.localizedMessage}")
         }
     })
+}
+
+fun calculateDistanceInKM(
+    lat1: Double, lon1: Double,
+    lat2: Double, lon2: Double
+): Double {
+    val origin = Point.fromLngLat(lon1, lat1)
+    val destination = Point.fromLngLat(lon2, lat2)
+
+    return TurfMeasurement.distance(origin, destination, "kilometers")
 }
