@@ -1,5 +1,6 @@
 package com.piperrideshare.driver.ui.screens.home
 
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +15,7 @@ import com.piperrideshare.driver.ui.viewModel.WebSocketViewModel
 
 @Composable
 fun HomeTabContent(
+    context: Context,
     viewModel: WebSocketViewModel,
     showOnlineOfflineToggleButton: Boolean,
     isOnline: Boolean,
@@ -28,10 +30,23 @@ fun HomeTabContent(
     mapViewInstance: MapView?,
     setMapViewInstance: (MapView) -> Unit,
     currentLocation: Pair<Double, Double>?,
-    rideAccepted: Boolean
+    showLoading: Boolean,
+    showLoadingText: String,
+    rideAccepted: Boolean,
+    arrivedAtPickupPoint: Boolean,
+    rideStarted: Boolean,
+    rideCompleted: Boolean
 ) {
+    PiperDriverAlert(
+        showLoading,
+        showLoadingText
+    )
+
+    if (rideCompleted) {
+        clearPickupMarkerAndRouteLine()
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
-        // Fullscreen Map
         MapViewContainer(
             onMapReady = { mapView ->
                 setMapViewInstance(mapView)
@@ -42,46 +57,23 @@ fun HomeTabContent(
                 .padding(bottom = 56.dp)
         )
 
-        if (rideAccepted) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 56.dp)
-                    .padding(bottom = 120.dp),
-                verticalArrangement = Arrangement.Bottom,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                PiperDriverButton(
-                    text = "Arrive at Pickup Point",
-                    onClick = {
-                        viewModel.arriveAtPickup(currentRideRequest!!.rideId)
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
+        when {
+            rideAccepted || arrivedAtPickupPoint || rideStarted -> {
+                RideActionButton(
+                    rideAccepted = rideAccepted,
+                    arrivedAtPickupPoint = arrivedAtPickupPoint,
+                    viewModel = viewModel,
+                    currentRideRequest = currentRideRequest
                 )
             }
-        } else if (showOnlineOfflineToggleButton) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 56.dp)
-                    .padding(bottom = 120.dp),
-                verticalArrangement = Arrangement.Bottom,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                OnlineToggleButton(
+            showOnlineOfflineToggleButton -> {
+                OnlineToggleSection(
                     isOnline = isOnline,
                     onToggle = onToggleOnline
                 )
             }
         }
 
-        // Ride request popup
         if (showRidePopup && currentRideRequest != null) {
             RideRequestPopup(
                 rideRequest = currentRideRequest,
@@ -102,34 +94,36 @@ fun HomeTabContent(
         }
     }
 
-    // Fly to location when mapViewInstance and currentLocation are available
     LaunchedEffect(mapViewInstance, currentLocation) {
-        val map = mapViewInstance
-        val location = currentLocation
-        if (map != null && location != null) {
-            val (lat, lon) = location
-            flyToLocation(map, lat, lon)
+        mapViewInstance?.let { map ->
+            currentLocation?.let { (lat, lon) ->
+                flyToLocation(map, lat, lon)
+            }
         }
     }
 
-    LaunchedEffect(rideAccepted, mapViewInstance, currentLocation, currentRideRequest) {
-        if (
-            rideAccepted &&
+    LaunchedEffect(rideAccepted, arrivedAtPickupPoint, mapViewInstance, currentLocation, currentRideRequest) {
+        if ((rideAccepted || arrivedAtPickupPoint) &&
             mapViewInstance != null &&
             currentLocation != null &&
             currentRideRequest != null
         ) {
-            val destination = currentRideRequest.pickupLocation
-            val destinationLat = destination?.latitude
-            val destinationLng = destination?.longitude
+            val destination = if (rideAccepted) {
+                currentRideRequest.pickupLocation
+            } else {
+                currentRideRequest.dropoffLocation
+            }
 
-            if (destinationLat != null && destinationLng != null) {
-                drawLineToDestination(
-                    mapView = mapViewInstance,
-                    destinationMarkerColor = "#FF0000",
-                    currentLocation = currentLocation,
-                    destinationLocation = destinationLat to destinationLng
-                )
+            destination?.latitude?.let { destLat ->
+                destination.longitude?.let { destLng ->
+                    drawRouteToDestination(
+                        context = context,
+                        mapView = mapViewInstance,
+                        destinationMarkerColor = "#FF0000",
+                        currentLocation = currentLocation,
+                        destinationLocation = destLat to destLng
+                    )
+                }
             }
         }
     }
@@ -144,6 +138,25 @@ fun MapViewContainer(
         modifier = modifier,
         onMapReady = onMapReady
     )
+}
+
+@Composable
+fun OnlineToggleSection(
+    isOnline: Boolean,
+    onToggle: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 56.dp, vertical = 120.dp),
+        verticalArrangement = Arrangement.Bottom,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        OnlineToggleButton(
+            isOnline = isOnline,
+            onToggle = onToggle
+        )
+    }
 }
 
 @Composable
@@ -165,4 +178,54 @@ fun OnlineToggleButton(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     )
+}
+
+@Composable
+fun RideActionButton(
+    rideAccepted: Boolean,
+    arrivedAtPickupPoint: Boolean,
+    viewModel: WebSocketViewModel,
+    currentRideRequest: RideRequestedResponse?
+) {
+    val buttonText = when {
+        rideAccepted -> "Arrive at Pickup Point"
+        arrivedAtPickupPoint -> "Start Ride"
+        else -> "Complete Ride"
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 56.dp, vertical = 120.dp),
+        verticalArrangement = Arrangement.Bottom,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        PiperDriverButton(
+            text = buttonText,
+            onClick = {
+                currentRideRequest?.rideId?.let { rideId ->
+                    when {
+                        rideAccepted -> viewModel.arriveAtPickup(rideId)
+                        arrivedAtPickupPoint -> viewModel.startRide(rideId)
+                        else -> viewModel.completeRide(
+                            rideId,
+                            calculateDistanceInKM(
+                                currentRideRequest.pickupLocation!!.latitude,
+                                currentRideRequest.pickupLocation.longitude,
+                                currentRideRequest.dropoffLocation!!.latitude,
+                                currentRideRequest.dropoffLocation.longitude,
+                            )
+                        )
+                    }
+                }
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+    }
 }

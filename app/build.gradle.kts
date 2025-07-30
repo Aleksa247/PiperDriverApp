@@ -135,7 +135,10 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.7")
 
     // Mapbox
-    implementation("com.mapbox.maps:android:11.0.0")
+    implementation("com.mapbox.maps:android:11.13.4")
+    implementation("com.mapbox.extension:maps-compose:11.13.4")
+    implementation("com.mapbox.mapboxsdk:mapbox-sdk-turf:5.8.0")
+    implementation("com.mapbox.mapboxsdk:mapbox-sdk-services:7.4.0")
 
     // Location Services
     implementation("com.google.android.gms:play-services-location:21.3.0")

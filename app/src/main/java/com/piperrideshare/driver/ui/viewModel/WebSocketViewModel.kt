@@ -10,6 +10,7 @@ import com.piperrideshare.driver.api.models.response.websocket.UnknownResponse
 import com.piperrideshare.driver.api.models.response.websocket.ZoneInfoResponse
 import com.piperrideshare.driver.services.IWebSocketRepository
 import com.piperrideshare.driver.services.session.ISessionManager
+import com.piperrideshare.driver.utils.LocationTracker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -60,6 +61,26 @@ class WebSocketViewModel
         private val _rideAccepted = MutableStateFlow<Boolean>(false)
         val rideAccepted = _rideAccepted.asStateFlow()
 
+        // Arrived at Pickup Point
+        private val _arrivedAtPickupPoint = MutableStateFlow<Boolean>(false)
+        val arrivedAtPickupPoint = _arrivedAtPickupPoint.asStateFlow()
+
+        // Ride Started Status
+        private val _rideStarted = MutableStateFlow<Boolean>(false)
+        val rideStarted = _rideStarted.asStateFlow()
+
+        // Ride Completed Status
+        private val _rideCompleted = MutableStateFlow<Boolean>(false)
+        val rideCompleted = _rideCompleted.asStateFlow()
+
+        // Show Loading Status
+        private val _showLoading = MutableStateFlow<Boolean>(false)
+        val showLoading = _showLoading.asStateFlow()
+
+        // Show Loading Status
+        private val _showLoadingText = MutableStateFlow<String>("")
+        val showLoadingText = _showLoadingText.asStateFlow()
+
         /**
          * Initialize WebSocket connection on ViewModel creation
          *
@@ -91,6 +112,7 @@ class WebSocketViewModel
                 viewModelScope.launch {
                     // Thomas Breakpoint: Set breakpoint here to see all incoming WebSocket messages
                     // @Thomas - BREAKPOINT HERE: WebSocket message received
+                    _showLoading.value = false
                     Timber.d("📨 WEBSOCKET: Message received - Type: ${response.javaClass.simpleName}")
 
                     // Process different types of WebSocket responses
@@ -131,6 +153,9 @@ class WebSocketViewModel
                             if (response.status == "success") {
                                 when (response.action) {
                                     "accept_ride" -> _rideAccepted.value = true
+                                    "arrive_at_pickup" -> _arrivedAtPickupPoint.value = true
+                                    "start_ride" -> _rideStarted.value = true
+                                    "complete_ride" -> _rideCompleted.value = true
                                 }
                             }
                         }
@@ -187,6 +212,8 @@ class WebSocketViewModel
             rideTypeId: String? = null,
         ) {
             viewModelScope.launch {
+                _showLoading.value = true
+                _showLoadingText.value = "Going Online..."
                 val deviceId = sessionManager.fcmToken.first() ?: "Unknown"
 
                 // @Thomas - BREAKPOINT HERE: About to send go online WebSocket message
@@ -245,6 +272,8 @@ class WebSocketViewModel
             viewModelScope.launch {
                 // @Thomas - BREAKPOINT HERE: WebSocket accepting ride request
                 // This sends the accept ride WebSocket message to the backend
+                _showLoading.value = true
+                _showLoadingText.value = "Matching you to the ride..."
                 Timber.d("✅ WEBSOCKET: Accepting ride request - ID: $rideId")
                 repository.sendAcceptRide(rideId)
                 // Clear the ride request after accepting
@@ -279,6 +308,9 @@ class WebSocketViewModel
         fun arriveAtPickup(rideId: String) {
             // @Thomas - BREAKPOINT HERE: Driver arriving at pickup
             // This notifies the backend that driver has arrived at pickup location
+            _showLoading.value = true
+            _showLoadingText.value = "Arriving at pickup point..."
+            _rideAccepted.value = false
             Timber.d("📍 WEBSOCKET: Driver arriving at pickup - ID: $rideId")
             repository.sendArriveAtPickup(rideId)
         }
@@ -291,6 +323,9 @@ class WebSocketViewModel
         fun startRide(rideId: String) {
             // @Thomas - BREAKPOINT HERE: Starting ride journey
             // This notifies the backend that the ride journey has started
+            _showLoading.value = true
+            _showLoadingText.value = "Starting the ride..."
+            _arrivedAtPickupPoint.value = false
             Timber.d("🚀 WEBSOCKET: Starting ride journey - ID: $rideId")
             repository.sendStartRide(rideId)
         }
@@ -307,6 +342,9 @@ class WebSocketViewModel
         ) {
             // @Thomas - BREAKPOINT HERE: Completing ride
             // This submits the final ride completion with distance traveled
+            _showLoading.value = true
+            _showLoadingText.value = "Completing ride..."
+            _rideStarted.value = false
             Timber.d("🏁 WEBSOCKET: Completing ride - ID: $rideId, Distance: $distance km")
             repository.sendCompleteRide(rideId, distance)
         }
@@ -331,6 +369,8 @@ class WebSocketViewModel
         fun goOffline() {
             // @Thomas - BREAKPOINT HERE: Getting active ride info
             // This requests information about the currently active ride
+            _showLoading.value = true
+            _showLoadingText.value = "Going offline..."
             Timber.d("📋 WEBSOCKET: Go Offline")
             repository.sendGoOffline()
         }
