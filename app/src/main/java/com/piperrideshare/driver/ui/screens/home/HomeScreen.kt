@@ -1,7 +1,5 @@
 package com.piperrideshare.driver.ui.screens.home
 
-import android.Manifest
-import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,7 +35,6 @@ import com.piperrideshare.driver.ui.screens.account.AccountScreen
 import com.piperrideshare.driver.ui.screens.activity.ActivityScreen
 import com.piperrideshare.driver.ui.viewModel.WebSocketViewModel
 import com.piperrideshare.driver.utils.LocationTracker
-import com.piperrideshare.driver.utils.PermissionHandler
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -56,15 +53,21 @@ fun HomeScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    var isOnline by remember { mutableStateOf(false) }
+    // Use persistent state from ViewModel instead of local state
+    val isOnline by viewModel.isOnline.collectAsState(initial = false)
+    val currentRideIdFromState by viewModel.currentRideId.collectAsState(initial = null)
+    val rideStatus by viewModel.rideStatus.collectAsState(initial = null)
+    val stateRestored by viewModel.stateRestored.collectAsState(initial = false)
+
+    // Local UI state
     var currentLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
-    var pendingOnlineRequest by remember { mutableStateOf(false) }
     var showRidePopup by remember { mutableStateOf(false) }
     var isInitialized by remember { mutableStateOf(false) }
     var currentRideRequest by remember { mutableStateOf<RideRequestedResponse?>(null) }
     var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
     var lastZoneName by remember { mutableStateOf<String?>(null) }
 
+    // WebSocket state
     val rideRequest by viewModel.rideRequest.collectAsState()
     val driverModel by viewModel.driverModel.collectAsState()
     val zoneInfo by viewModel.zoneInfo.collectAsState()
@@ -76,6 +79,50 @@ fun HomeScreen(
     val showLoadingText by viewModel.showLoadingText.collectAsState()
 
     var selectedTab by remember { mutableStateOf<BottomNavItem>(BottomNavItem.Home) }
+
+
+    // Show state restoration info to user
+    LaunchedEffect(stateRestored, isOnline, currentRideIdFromState, rideStatus) {
+        if (stateRestored) {
+            when {
+                isOnline && currentRideIdFromState != null -> {
+                    val statusMessage = when (rideStatus) {
+                        "accepted" -> "You have an accepted ride. Continue to pickup."
+                        "driver_arrived" -> "You're at pickup. Ready to start the ride."
+                        "in_progress" -> "Ride in progress. Continue to destination."
+                        else -> "You have an active ride."
+                    }
+                    Toast.makeText(context, "🔄 State restored: $statusMessage", Toast.LENGTH_LONG).show()
+                }
+                isOnline -> {
+                    Toast.makeText(context, "🟢 You're back online and ready for rides!", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    // Show driver model synchronization feedback
+    LaunchedEffect(driverModel) {
+        driverModel?.let { model ->
+            val backendOnline = model.availabilityState.equals("ONLINE", ignoreCase = true)
+            val hasBackendRide = model.currentRideID.isNotBlank()
+
+            when {
+                backendOnline && !isOnline -> {
+                    Toast.makeText(context, "🔄 Synced: You're now online (restored from backend)", Toast.LENGTH_SHORT).show()
+                }
+                !backendOnline && isOnline -> {
+                    Toast.makeText(context, "🔄 Synced: You're now offline (backend timeout)", Toast.LENGTH_SHORT).show()
+                }
+                hasBackendRide && currentRideIdFromState == null -> {
+                    Toast.makeText(context, "🔄 Synced: Active ride restored from backend", Toast.LENGTH_SHORT).show()
+                }
+                !hasBackendRide && currentRideIdFromState != null -> {
+                    Toast.makeText(context, "🔄 Synced: Ride completed (cleared from backend)", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     LaunchedEffect(currentLocation, mapViewInstance) {
         currentLocation?.let { location ->
@@ -110,31 +157,40 @@ fun HomeScreen(
         }
     }
 
-    if (isOnline && currentRideRequest == null) {
-        LaunchedEffect(rideRequest) {
-            Timber.d("🔄 RIDE STATE: New rideRequest received = ${rideRequest?.rideId}, Current = ${currentRideRequest?.rideId}")
 
-            if (rideRequest != null && currentRideRequest == null) {
-                currentRideRequest = rideRequest
-                showRidePopup = true
-                mapViewInstance?.let { mapView ->
-                    rideRequest?.pickupLocation?.let { location ->
-                        flyToLocation(mapView, latitude = location.latitude, longitude = location.longitude)
-                    }
-                }
+//    if (isOnline && currentRideRequest == null) {
+//        LaunchedEffect(rideRequest) {
+//            Timber.d("🔄 RIDE STATE: New rideRequest received = ${rideRequest?.rideId}, Current = ${currentRideRequest?.rideId}")
+//
+//            if (rideRequest != null && currentRideRequest == null) {
+//                currentRideRequest = rideRequest
+//                showRidePopup = true
+//                mapViewInstance?.let { mapView ->
+//                    rideRequest?.pickupLocation?.let { location ->
+//                        flyToLocation(mapView, latitude = location.latitude, longitude = location.longitude)
+//                    }
+//                }
+//
+//                val location = LocationTracker(context).getCurrentLocation()
+//                viewModel.updateLocation(
+//                    latitude = location!!.first,
+//                    longitude = location.second
+//                )
+//            } else if (rideRequest == null) {
+//                mapViewInstance?.let {
+//                    clearPickupMarkerAndRouteLine()
+//                }
+//            } else {
+//                Timber.d("🚫 Ignoring new ride request because a ride is already in progress.")
+//            }
+//        }
+//    }
 
-                val location = LocationTracker(context).getCurrentLocation()
-                viewModel.updateLocation(
-                    latitude = location!!.first,
-                    longitude = location.second
-                )
-            } else if (rideRequest == null) {
-                mapViewInstance?.let {
-                    clearPickupMarkerAndRouteLine()
-                }
-            } else {
-                Timber.d("🚫 Ignoring new ride request because a ride is already in progress.")
-            }
+    LaunchedEffect(Unit) {
+        val locationTracker = LocationTracker(context)
+        locationTracker.startLocationUpdates { location ->
+            // Only update UI location, periodic updates handle backend
+            currentLocation = location.latitude to location.longitude
         }
     }
 
@@ -149,10 +205,8 @@ fun HomeScreen(
                     zoneId = zoneInfo!!.payload.zone.id,
                     rideTypeId = zoneInfo!!.payload.zone.rideTypeIds.first(),
                 )
-                isOnline = true
             } else {
-                Toast.makeText(context, "Unable to get current location", Toast.LENGTH_SHORT).show()
-                pendingOnlineRequest = false
+                Toast.makeText(context, "Unable to get current location. Please check location permissions.", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -161,9 +215,8 @@ fun HomeScreen(
         if (isOnline) {
             currentRideRequest = null
             viewModel.goOffline()
-            isOnline = false
         } else {
-            pendingOnlineRequest = true
+            goOnlineWithLocation()
         }
     }
 
@@ -185,25 +238,6 @@ fun HomeScreen(
         coroutineScope.launch {
             viewModel.declineRide(currentRideRequest!!.rideId)
         }
-    }
-
-    if (pendingOnlineRequest) {
-        val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-
-        PermissionHandler(
-            permissions = permissions,
-            onPermissionGranted = {
-                pendingOnlineRequest = false
-                goOnlineWithLocation()
-            },
-            onPermissionDenied = {
-                Toast.makeText(context, "Location permission is required to go online", Toast.LENGTH_SHORT).show()
-                pendingOnlineRequest = false
-            },
-        )
     }
 
     LaunchedEffect(zoneInfo?.payload?.zone?.name) {

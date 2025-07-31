@@ -33,6 +33,8 @@ interface IWebSocketRepository {
     )
 
     fun sendGetActiveRide()
+
     fun sendGetRideHistory(requestId: String)
+
     fun sendGoOffline()
 }

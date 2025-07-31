@@ -3,7 +3,7 @@ package com.piperrideshare.driver.api.models.request
 import org.json.JSONObject
 
 class GetRideHistoryRequest(
-    val requestId: String
+    val requestId: String,
 ) : WebSocketRequest {
     override val type = "query"
     override val action = "get_ride_history"
