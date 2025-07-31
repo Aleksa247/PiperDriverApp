@@ -133,7 +133,7 @@ fun RideRequestPopup(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("💰", style = MaterialTheme.typography.bodyLarge)
                                 Text(
-                                    text = "$${String.format("%.2f", fare/100)}",
+                                    text = "$${String.format("%.2f", fare / 100)}",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                 )

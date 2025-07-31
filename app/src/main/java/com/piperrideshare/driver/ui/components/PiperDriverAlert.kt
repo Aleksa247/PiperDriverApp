@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun PiperDriverAlert(
     showLoading: Boolean,
-    statusText: String
+    statusText: String,
 ) {
     if (!showLoading) return
 
@@ -25,11 +25,11 @@ fun PiperDriverAlert(
         text = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 CircularProgressIndicator()
                 Text(text = statusText)
             }
-        }
+        },
     )
 }

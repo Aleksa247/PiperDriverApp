@@ -11,24 +11,19 @@ import com.google.gson.annotations.SerializedName
 data class RideRequestedResponse(
     @SerializedName("rideId")
     val rideId: String = "",
-
     @SerializedName("startingLocation")
     val pickupLocation: Location? = null,
-
     @SerializedName("endingLocation")
     val dropoffLocation: Location? = null,
-
     @SerializedName("totalEarnings")
     val estimatedFare: Double? = null,
-
     @SerializedName("estimatedLength")
     val estimatedDistance: Double? = null,
-
     @SerializedName("estimatedTime")
-    val estimatedDuration: Int? = null
+    val estimatedDuration: Int? = null,
 ) : WebSocketResponse()
 
 data class Location(
     val latitude: Double,
-    val longitude: Double
+    val longitude: Double,
 )

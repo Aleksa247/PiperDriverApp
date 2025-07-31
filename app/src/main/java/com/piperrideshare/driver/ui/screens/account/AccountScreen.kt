@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 fun AccountScreen() {
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Text("Account Screen", style = MaterialTheme.typography.headlineMedium)
     }

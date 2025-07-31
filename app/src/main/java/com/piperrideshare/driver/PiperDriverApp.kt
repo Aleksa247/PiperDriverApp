@@ -4,7 +4,6 @@ import android.app.Application
 import com.google.firebase.Firebase
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
-import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.messaging
 import com.google.firebase.perf.performance
 import com.piperrideshare.driver.di.AppEntryPoint

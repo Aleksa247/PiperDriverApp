@@ -74,11 +74,12 @@ fun addPickupMarker(
     val bitmap = createBitmap(markerSize, markerSize)
     val canvas = Canvas(bitmap)
 
-    val paint = Paint().apply {
-        isAntiAlias = true
-        color = destinationMarkerColor.toColorInt()
-        style = Paint.Style.FILL
-    }
+    val paint =
+        Paint().apply {
+            isAntiAlias = true
+            color = destinationMarkerColor.toColorInt()
+            style = Paint.Style.FILL
+        }
 
     val centerX = markerSize / 2f
     val centerY = markerSize / 2f
@@ -87,9 +88,10 @@ fun addPickupMarker(
     canvas.drawCircle(centerX, centerY, radius, paint)
 
     val point = Point.fromLngLat(longitude, latitude)
-    val pointAnnotationOptions = PointAnnotationOptions()
-        .withPoint(point)
-        .withIconImage(bitmap)
+    val pointAnnotationOptions =
+        PointAnnotationOptions()
+            .withPoint(point)
+            .withIconImage(bitmap)
 
     pickupMarkerManager?.create(pointAnnotationOptions)
 
@@ -124,8 +126,9 @@ fun PiperDriverMapView(
                         )
 
                     mapboxMap.loadStyle(
-                        styleExtension = style(Style.MAPBOX_STREETS) {
-                        }
+                        styleExtension =
+                            style(Style.MAPBOX_STREETS) {
+                            },
                     ) { style ->
                         mapView = this@apply
                         onMapReady(this@apply)
@@ -136,11 +139,12 @@ fun PiperDriverMapView(
         )
 
         Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 80.dp)
-                .background(Color.Black.copy(alpha = 0.5f)),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 80.dp)
+                    .background(Color.Black.copy(alpha = 0.5f)),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -272,67 +276,77 @@ fun drawRouteToDestination(
     mapView: MapView,
     destinationMarkerColor: String,
     currentLocation: Pair<Double, Double>,
-    destinationLocation: Pair<Double, Double>
+    destinationLocation: Pair<Double, Double>,
 ) {
     val origin = Point.fromLngLat(currentLocation.second, currentLocation.first)
     val destination = Point.fromLngLat(destinationLocation.second, destinationLocation.first)
 
-    val client = MapboxDirections.builder()
-        .routeOptions(
-            RouteOptions.builder()
-                .coordinatesList(listOf(
-                    origin,
-                    destination
-                ))
-                .profile(DirectionsCriteria.PROFILE_DRIVING_TRAFFIC)
-                .overview(DirectionsCriteria.OVERVIEW_FULL)
-                .build()
-        )
-        .accessToken(context.getString(R.string.mapbox_access_token))
-        .build()
+    val client =
+        MapboxDirections
+            .builder()
+            .routeOptions(
+                RouteOptions
+                    .builder()
+                    .coordinatesList(
+                        listOf(
+                            origin,
+                            destination,
+                        ),
+                    ).profile(DirectionsCriteria.PROFILE_DRIVING_TRAFFIC)
+                    .overview(DirectionsCriteria.OVERVIEW_FULL)
+                    .build(),
+            ).accessToken(context.getString(R.string.mapbox_access_token))
+            .build()
 
-    client.enqueueCall(object : Callback<DirectionsResponse> {
-        override fun onResponse(
-            call: Call<DirectionsResponse>,
-            response: Response<DirectionsResponse>
-        ) {
-            val body = response.body()
-            if (body == null || body.routes().isEmpty()) {
-                Timber.d("No route found.")
-                return
+    client.enqueueCall(
+        object : Callback<DirectionsResponse> {
+            override fun onResponse(
+                call: Call<DirectionsResponse>,
+                response: Response<DirectionsResponse>,
+            ) {
+                val body = response.body()
+                if (body == null || body.routes().isEmpty()) {
+                    Timber.d("No route found.")
+                    return
+                }
+
+                val route = body.routes()[0]
+                val geometry = route.geometry() ?: return
+                val routeLine = LineString.fromPolyline(geometry, 6)
+
+                val polylineManager = mapView.annotations.createPolylineAnnotationManager()
+                clearPickupMarkerAndRouteLine()
+                polylineManager.deleteAll()
+
+                polylineManager.create(
+                    PolylineAnnotationOptions()
+                        .withPoints(routeLine.coordinates())
+                        .withLineColor("#3b9ddd")
+                        .withLineWidth(5.0),
+                )
+                addPickupMarker(
+                    mapView,
+                    destinationMarkerColor,
+                    destinationLocation.first,
+                    destinationLocation.second,
+                )
             }
 
-            val route = body.routes()[0]
-            val geometry = route.geometry() ?: return
-            val routeLine = LineString.fromPolyline(geometry, 6)
-
-            val polylineManager = mapView.annotations.createPolylineAnnotationManager()
-            clearPickupMarkerAndRouteLine()
-            polylineManager.deleteAll()
-
-            polylineManager.create(
-                PolylineAnnotationOptions()
-                    .withPoints(routeLine.coordinates())
-                    .withLineColor("#3b9ddd")
-                    .withLineWidth(5.0)
-            )
-            addPickupMarker(
-                mapView,
-                destinationMarkerColor,
-                destinationLocation.first,
-                destinationLocation.second
-            )
-        }
-
-        override fun onFailure(call: Call<DirectionsResponse>, t: Throwable) {
-            Timber.e("Route call failed: ${t.localizedMessage}")
-        }
-    })
+            override fun onFailure(
+                call: Call<DirectionsResponse>,
+                t: Throwable,
+            ) {
+                Timber.e("Route call failed: ${t.localizedMessage}")
+            }
+        },
+    )
 }
 
 fun calculateDistanceInKM(
-    lat1: Double, lon1: Double,
-    lat2: Double, lon2: Double
+    lat1: Double,
+    lon1: Double,
+    lat2: Double,
+    lon2: Double,
 ): Double {
     val origin = Point.fromLngLat(lon1, lat1)
     val destination = Point.fromLngLat(lon2, lat2)

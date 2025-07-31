@@ -35,11 +35,11 @@ fun HomeTabContent(
     rideAccepted: Boolean,
     arrivedAtPickupPoint: Boolean,
     rideStarted: Boolean,
-    rideCompleted: Boolean
+    rideCompleted: Boolean,
 ) {
     PiperDriverAlert(
         showLoading,
-        showLoadingText
+        showLoadingText,
     )
 
     if (rideCompleted) {
@@ -52,9 +52,10 @@ fun HomeTabContent(
                 setMapViewInstance(mapView)
                 enableLocationComponent(mapView)
             },
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 56.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 56.dp),
         )
 
         when {
@@ -63,13 +64,13 @@ fun HomeTabContent(
                     rideAccepted = rideAccepted,
                     arrivedAtPickupPoint = arrivedAtPickupPoint,
                     viewModel = viewModel,
-                    currentRideRequest = currentRideRequest
+                    currentRideRequest = currentRideRequest,
                 )
             }
             showOnlineOfflineToggleButton -> {
                 OnlineToggleSection(
                     isOnline = isOnline,
-                    onToggle = onToggleOnline
+                    onToggle = onToggleOnline,
                 )
             }
         }
@@ -89,7 +90,7 @@ fun HomeTabContent(
                 onDismiss = {
                     setShowRidePopup(false)
                     onPopupDismiss()
-                }
+                },
             )
         }
     }
@@ -108,11 +109,12 @@ fun HomeTabContent(
             currentLocation != null &&
             currentRideRequest != null
         ) {
-            val destination = if (rideAccepted) {
-                currentRideRequest.pickupLocation
-            } else {
-                currentRideRequest.dropoffLocation
-            }
+            val destination =
+                if (rideAccepted) {
+                    currentRideRequest.pickupLocation
+                } else {
+                    currentRideRequest.dropoffLocation
+                }
 
             destination?.latitude?.let { destLat ->
                 destination.longitude?.let { destLng ->
@@ -121,7 +123,7 @@ fun HomeTabContent(
                         mapView = mapViewInstance,
                         destinationMarkerColor = "#FF0000",
                         currentLocation = currentLocation,
-                        destinationLocation = destLat to destLng
+                        destinationLocation = destLat to destLng,
                     )
                 }
             }
@@ -132,29 +134,30 @@ fun HomeTabContent(
 @Composable
 fun MapViewContainer(
     modifier: Modifier = Modifier,
-    onMapReady: (MapView) -> Unit
+    onMapReady: (MapView) -> Unit,
 ) {
     PiperDriverMapView(
         modifier = modifier,
-        onMapReady = onMapReady
+        onMapReady = onMapReady,
     )
 }
 
 @Composable
 fun OnlineToggleSection(
     isOnline: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 56.dp, vertical = 120.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 56.dp, vertical = 120.dp),
         verticalArrangement = Arrangement.Bottom,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         OnlineToggleButton(
             isOnline = isOnline,
-            onToggle = onToggle
+            onToggle = onToggle,
         )
     }
 }
@@ -162,7 +165,7 @@ fun OnlineToggleSection(
 @Composable
 fun OnlineToggleButton(
     isOnline: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
 ) {
     val buttonText = if (isOnline) "Go Offline" else "Go Online"
     val buttonColor = if (isOnline) Color.Gray else MaterialTheme.colorScheme.primary
@@ -170,13 +173,15 @@ fun OnlineToggleButton(
     PiperDriverButton(
         text = buttonText,
         onClick = onToggle,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = buttonColor,
-            contentColor = Color.White
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+        colors =
+            ButtonDefaults.buttonColors(
+                containerColor = buttonColor,
+                contentColor = Color.White,
+            ),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
     )
 }
 
@@ -185,20 +190,22 @@ fun RideActionButton(
     rideAccepted: Boolean,
     arrivedAtPickupPoint: Boolean,
     viewModel: WebSocketViewModel,
-    currentRideRequest: RideRequestedResponse?
+    currentRideRequest: RideRequestedResponse?,
 ) {
-    val buttonText = when {
-        rideAccepted -> "Arrive at Pickup Point"
-        arrivedAtPickupPoint -> "Start Ride"
-        else -> "Complete Ride"
-    }
+    val buttonText =
+        when {
+            rideAccepted -> "Arrive at Pickup Point"
+            arrivedAtPickupPoint -> "Start Ride"
+            else -> "Complete Ride"
+        }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 56.dp, vertical = 120.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 56.dp, vertical = 120.dp),
         verticalArrangement = Arrangement.Bottom,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         PiperDriverButton(
             text = buttonText,
@@ -207,25 +214,28 @@ fun RideActionButton(
                     when {
                         rideAccepted -> viewModel.arriveAtPickup(rideId)
                         arrivedAtPickupPoint -> viewModel.startRide(rideId)
-                        else -> viewModel.completeRide(
-                            rideId,
-                            calculateDistanceInKM(
-                                currentRideRequest.pickupLocation!!.latitude,
-                                currentRideRequest.pickupLocation.longitude,
-                                currentRideRequest.dropoffLocation!!.latitude,
-                                currentRideRequest.dropoffLocation.longitude,
+                        else ->
+                            viewModel.completeRide(
+                                rideId,
+                                calculateDistanceInKM(
+                                    currentRideRequest.pickupLocation!!.latitude,
+                                    currentRideRequest.pickupLocation.longitude,
+                                    currentRideRequest.dropoffLocation!!.latitude,
+                                    currentRideRequest.dropoffLocation.longitude,
+                                ),
                             )
-                        )
                     }
                 }
             },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = Color.White,
+                ),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
         )
     }
 }

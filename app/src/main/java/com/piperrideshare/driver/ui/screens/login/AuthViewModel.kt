@@ -21,52 +21,52 @@ class AuthViewModel
         private val authRepository: AuthRepository,
         private val sessionManager: ISessionManager,
     ) : ViewModel() {
-    private val _loginResult = MutableStateFlow<ApiResult<AuthResponse>?>(null)
-    val loginResult: StateFlow<ApiResult<AuthResponse>?> = _loginResult
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading
+        private val _loginResult = MutableStateFlow<ApiResult<AuthResponse>?>(null)
+        val loginResult: StateFlow<ApiResult<AuthResponse>?> = _loginResult
+        private val _isLoading = MutableStateFlow(false)
+        val isLoading: StateFlow<Boolean> = _isLoading
 
-    fun login(
-        email: String,
-        password: String,
-    ) {
-        viewModelScope.launch {
-            _isLoading.value = true
+        fun login(
+            email: String,
+            password: String,
+        ) {
+            viewModelScope.launch {
+                _isLoading.value = true
 
-            // @Thomas - BREAKPOINT HERE: Retrieve FCM token from local session
-            val deviceId = sessionManager.fcmToken.first() ?: "Unknown"
+                // @Thomas - BREAKPOINT HERE: Retrieve FCM token from local session
+                val deviceId = sessionManager.fcmToken.first() ?: "Unknown"
 
-            // @Thomas - BREAKPOINT HERE: About to make API call to login endpoint
-            // This will show in logcat when the actual HTTP request is made
-            Timber.d("🌐 API CALL: Making login request to /api/drivers/login")
-            Timber.d("📧 Email: $email")
-            Timber.d("🔑 Device ID: $deviceId")
+                // @Thomas - BREAKPOINT HERE: About to make API call to login endpoint
+                // This will show in logcat when the actual HTTP request is made
+                Timber.d("🌐 API CALL: Making login request to /api/drivers/login")
+                Timber.d("📧 Email: $email")
+                Timber.d("🔑 Device ID: $deviceId")
 
-            // Perform actual API login
-            val result = authRepository.login(email, password, deviceId)
+                // Perform actual API login
+                val result = authRepository.login(email, password, deviceId)
 
-            // @Thomas - BREAKPOINT HERE: API response received
-            // Check logcat for HTTP response details
-            when (result) {
-                is ApiResult.Success -> {
-                    val response = result.data
-                    Timber.d("✅ LOGIN SUCCESS: Token=${response.token}")
-                    sessionManager.saveAuthInfo(
-                        token = response.token,
-                        userId = response.userId,
-                        name = response.name,
-                    )
+                // @Thomas - BREAKPOINT HERE: API response received
+                // Check logcat for HTTP response details
+                when (result) {
+                    is ApiResult.Success -> {
+                        val response = result.data
+                        Timber.d("✅ LOGIN SUCCESS: Token=${response.token}")
+                        sessionManager.saveAuthInfo(
+                            token = response.token,
+                            userId = response.userId,
+                            name = response.name,
+                        )
+                    }
+                    is ApiResult.Failure -> {
+                        Timber.e("❌ LOGIN FAILURE: ${result.message} (code=${result.code})")
+                    }
+                    is ApiResult.NetworkError -> {
+                        Timber.e("🌐 NETWORK ERROR: Please check your connection.")
+                    }
                 }
-                is ApiResult.Failure -> {
-                    Timber.e("❌ LOGIN FAILURE: ${result.message} (code=${result.code})")
-                }
-                is ApiResult.NetworkError -> {
-                    Timber.e("🌐 NETWORK ERROR: Please check your connection.")
-                }
+
+                _loginResult.value = result
+                _isLoading.value = false
             }
-
-            _loginResult.value = result
-            _isLoading.value = false
         }
     }
-}
