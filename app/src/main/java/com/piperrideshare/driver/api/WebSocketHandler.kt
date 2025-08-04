@@ -27,6 +27,12 @@ class WebSocketHandler
             token: String,
             onEvent: (WebSocketResult) -> Unit,
         ) {
+            if (webSocket != null) {
+                this.onEventCallback = onEvent
+                onEvent(WebSocketResult.Connected)
+                return
+            }
+
             this.lastToken = token
             this.onEventCallback = onEvent
             this.reconnecting = false

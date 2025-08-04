@@ -158,33 +158,33 @@ fun HomeScreen(
     }
 
 
-//    if (isOnline && currentRideRequest == null) {
-//        LaunchedEffect(rideRequest) {
-//            Timber.d("🔄 RIDE STATE: New rideRequest received = ${rideRequest?.rideId}, Current = ${currentRideRequest?.rideId}")
-//
-//            if (rideRequest != null && currentRideRequest == null) {
-//                currentRideRequest = rideRequest
-//                showRidePopup = true
-//                mapViewInstance?.let { mapView ->
-//                    rideRequest?.pickupLocation?.let { location ->
-//                        flyToLocation(mapView, latitude = location.latitude, longitude = location.longitude)
-//                    }
-//                }
-//
-//                val location = LocationTracker(context).getCurrentLocation()
-//                viewModel.updateLocation(
-//                    latitude = location!!.first,
-//                    longitude = location.second
-//                )
-//            } else if (rideRequest == null) {
-//                mapViewInstance?.let {
-//                    clearPickupMarkerAndRouteLine()
-//                }
-//            } else {
-//                Timber.d("🚫 Ignoring new ride request because a ride is already in progress.")
-//            }
-//        }
-//    }
+    if (isOnline && currentRideRequest == null) {
+        LaunchedEffect(rideRequest) {
+            Timber.d("🔄 RIDE STATE: New rideRequest received = ${rideRequest?.rideId}, Current = ${currentRideRequest?.rideId}")
+
+            if (rideRequest != null && currentRideRequest == null) {
+                currentRideRequest = rideRequest
+                showRidePopup = true
+                mapViewInstance?.let { mapView ->
+                    rideRequest?.pickupLocation?.let { location ->
+                        flyToLocation(mapView, latitude = location.latitude, longitude = location.longitude)
+                    }
+                }
+
+                val location = LocationTracker(context).getCurrentLocation()
+                viewModel.updateLocation(
+                    latitude = location!!.first,
+                    longitude = location.second
+                )
+            } else if (rideRequest == null) {
+                mapViewInstance?.let {
+                    clearPickupMarkerAndRouteLine()
+                }
+            } else {
+                Timber.d("🚫 Ignoring new ride request because a ride is already in progress.")
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         val locationTracker = LocationTracker(context)
