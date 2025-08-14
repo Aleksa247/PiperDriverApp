@@ -5,7 +5,7 @@ import android.content.Intent
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
-import com.piperrideshare.driver.services.state.IDriverStateManager
+import com.piperrideshare.driver.api.models.DriverAvailabilityState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,8 +45,9 @@ class AppLifecycleObserver @Inject constructor(
     private fun handleAppBackgrounded() {
         scope.launch {
             try {
-                val isOnline = driverStateManager.isOnline.first()
-                val currentRideId = driverStateManager.currentRideId.first()
+                val driverState = driverStateManager.getCurrentState()
+                val isOnline = driverState?.availabilityState == DriverAvailabilityState.ONLINE
+                val currentRideId = driverState?.currentRideId
 
                 Timber.d("🔄 APP LIFECYCLE: Driver online: $isOnline, Current ride: $currentRideId")
 

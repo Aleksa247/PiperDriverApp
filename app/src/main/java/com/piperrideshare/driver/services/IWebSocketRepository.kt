@@ -36,5 +36,12 @@ interface IWebSocketRepository {
 
     fun sendGetRideHistory(requestId: String)
 
+    fun sendGetRiderInfo(rideId: String, riderId: String)
+
     fun sendGoOffline()
+
+    fun sendGetProfile(requestId: String)
+
+    fun sendGetEarnings(requestId: String, timeFrame: String = "week")
+
 }

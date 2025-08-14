@@ -14,8 +14,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-import com.piperrideshare.driver.services.state.DriverStateManager
-import com.piperrideshare.driver.services.state.IDriverStateManager
+import com.piperrideshare.driver.services.DriverStateManager
+import com.piperrideshare.driver.services.IDriverStateManager
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -41,11 +41,4 @@ object AppModule {
             @ApplicationContext context: Context,
         ): UserPreferences = UserPreferences(context)
     }
-}
-@Module
-@InstallIn(SingletonComponent::class)
-abstract class StateModule {
-    @Binds
-    @Singleton
-    abstract fun bindDriverStateManager(impl: DriverStateManager): IDriverStateManager
 }

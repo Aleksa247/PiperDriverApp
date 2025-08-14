@@ -5,6 +5,9 @@ import com.piperrideshare.driver.api.models.request.AcceptRideRequest
 import com.piperrideshare.driver.api.models.request.ArriveAtPickupRequest
 import com.piperrideshare.driver.api.models.request.CompleteRideRequest
 import com.piperrideshare.driver.api.models.request.GetActiveRideRequest
+import com.piperrideshare.driver.api.models.request.GetEarningsRequest
+import com.piperrideshare.driver.api.models.request.GetProfileRequest
+import com.piperrideshare.driver.api.models.request.GetRiderInfoRequest
 import com.piperrideshare.driver.api.models.request.GetRideHistoryRequest
 import com.piperrideshare.driver.api.models.request.GoOfflineRequest
 import com.piperrideshare.driver.api.models.request.GoOnlineRequest
@@ -98,7 +101,19 @@ class WebSocketRepository
             sendRequest(GetRideHistoryRequest(requestId))
         }
 
+        override fun sendGetRiderInfo(rideId: String, riderId: String) {
+            sendRequest(GetRiderInfoRequest(rideId, riderId))
+        }
+
         override fun sendGoOffline() {
             sendRequest(GoOfflineRequest())
+        }
+
+        override fun sendGetProfile(requestId: String) {
+            sendRequest(GetProfileRequest(requestId))
+        }
+
+        override fun sendGetEarnings(requestId: String, timeFrame: String) {
+            sendRequest(GetEarningsRequest(requestId, timeFrame))
         }
     }

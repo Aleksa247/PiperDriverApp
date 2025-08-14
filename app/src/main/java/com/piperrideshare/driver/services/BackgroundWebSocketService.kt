@@ -1,4 +1,3 @@
-
 package com.piperrideshare.driver.services
 
 import android.app.Notification
@@ -9,11 +8,10 @@ import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.piperrideshare.driver.R
-import com.piperrideshare.driver.services.IWebSocketRepository
-import com.piperrideshare.driver.services.session.ISessionManager
-import com.piperrideshare.driver.services.state.IDriverStateManager
+import com.piperrideshare.driver.api.models.DriverAvailabilityState
 import com.piperrideshare.driver.utils.Constants
 import com.piperrideshare.driver.utils.LocationTracker
+import com.piperrideshare.driver.services.session.ISessionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -112,7 +110,9 @@ class BackgroundWebSocketService : Service() {
         locationUpdateJob = serviceScope.launch {
             val locationTracker = LocationTracker(applicationContext)
             while (true) {
-                val isOnline = driverStateManager.isOnline.first()
+                val driverState = driverStateManager.getCurrentState()
+                val isOnline = driverState?.availabilityState == DriverAvailabilityState.ONLINE
+
                 if (isOnline) {
                     try {
                         val location = locationTracker.getCurrentLocation()
