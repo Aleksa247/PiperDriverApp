@@ -227,10 +227,11 @@ constructor(
         // Persist state (this will automatically update all flows observing driverStateManager.driverState)
         driverStateManager.saveDriverState(newDriverState)
         
-        // Clear rider info if driver goes back to ONLINE (ride completed/cancelled)
+        // Clear rider info and ride model if driver goes back to ONLINE (ride completed/cancelled)
         if (newDriverState.availabilityState == DriverAvailabilityState.ONLINE && 
             newDriverState.currentRideId.isNullOrBlank()) {
             _riderInfo.value = null
+            _rideModel.value = null
         }
     }
 
