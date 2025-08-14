@@ -109,8 +109,7 @@ fun HomeTabContent(
                     enableLocationComponent(mapView)
                 },
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 56.dp),
+                    .fillMaxSize(),
             )
 
             // State-specific UI overlay
