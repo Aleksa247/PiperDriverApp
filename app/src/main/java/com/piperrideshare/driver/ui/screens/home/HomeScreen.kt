@@ -12,6 +12,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -252,73 +254,73 @@ fun HomeScreen(
     // UI RENDERING
     // ==============================================
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        when (selectedTab) {
-            is BottomNavItem.Home -> {
-                HomeTabContent(
-                    context = context,
-                    viewModel = viewModel,
-                    driverState = driverState,
-                    currentAvailabilityState = currentAvailabilityState,
-                    zoneInfo = zoneInfo,
-                    rideRequest = currentRideRequest,
-                    rideModel = rideModel,
-                    riderInfo = riderInfo,
-                    showRidePopup = showRidePopup,
-                    showLoading = showLoading,
-                    showLoadingText = showLoadingText,
-                    currentLocation = currentLocation,
-                    mapViewInstance = mapViewInstance,
-                    onToggleOnline = ::toggleOnline,
-                    onAcceptRide = ::handleAcceptRide,
-                    onDeclineRide = ::handleDeclineRide,
-                    onPopupDismiss = {
-                        showRidePopup = false
-                        currentRideRequest = null
-                        clearPickupMarkerAndRouteLine()
-                    },
-                    setMapViewInstance = { mapViewInstance = it }
-                )
-            }
-            is BottomNavItem.Activity -> ActivityScreen()
-            is BottomNavItem.Account -> AccountScreen()
-        }
-
-        // ==============================================
-        // BOTTOM NAVIGATION
-        // ==============================================
-
-        NavigationBar(
-            containerColor = Color.White,
-            contentColor = Color.Black,
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-        ) {
-            listOf(BottomNavItem.Home, BottomNavItem.Activity, BottomNavItem.Account).forEach { item ->
-                NavigationBarItem(
-                    selected = selectedTab == item,
-                    onClick = { selectedTab = item },
-                    icon = {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.label,
-                            tint = if (selectedTab == item) Color.Black else Color.Gray
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = Color.White,
+                contentColor = Color.Black,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                listOf(BottomNavItem.Home, BottomNavItem.Activity, BottomNavItem.Account).forEach { item ->
+                    NavigationBarItem(
+                        selected = selectedTab == item,
+                        onClick = { selectedTab = item },
+                        icon = {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = item.label,
+                                tint = if (selectedTab == item) Color.Black else Color.Gray
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = item.label,
+                                color = if (selectedTab == item) Color.Black else Color.Gray
+                            )
+                        },
+                        alwaysShowLabel = true,
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Color.Black,
+                            unselectedIconColor = Color.Gray,
+                            selectedTextColor = Color.Black,
+                            unselectedTextColor = Color.Gray,
+                            indicatorColor = Color.Transparent
                         )
-                    },
-                    label = {
-                        Text(
-                            text = item.label,
-                            color = if (selectedTab == item) Color.Black else Color.Gray
-                        )
-                    },
-                    alwaysShowLabel = true,
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color.Black,
-                        unselectedIconColor = Color.Gray,
-                        selectedTextColor = Color.Black,
-                        unselectedTextColor = Color.Gray,
-                        indicatorColor = Color.Transparent
                     )
-                )
+                }
+            }
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            when (selectedTab) {
+                is BottomNavItem.Home -> {
+                    HomeTabContent(
+                        context = context,
+                        viewModel = viewModel,
+                        driverState = driverState,
+                        currentAvailabilityState = currentAvailabilityState,
+                        zoneInfo = zoneInfo,
+                        rideRequest = currentRideRequest,
+                        rideModel = rideModel,
+                        riderInfo = riderInfo,
+                        showRidePopup = showRidePopup,
+                        showLoading = showLoading,
+                        showLoadingText = showLoadingText,
+                        currentLocation = currentLocation,
+                        mapViewInstance = mapViewInstance,
+                        onToggleOnline = ::toggleOnline,
+                        onAcceptRide = ::handleAcceptRide,
+                        onDeclineRide = ::handleDeclineRide,
+                        onPopupDismiss = {
+                            showRidePopup = false
+                            currentRideRequest = null
+                            clearPickupMarkerAndRouteLine()
+                        },
+                        setMapViewInstance = { mapViewInstance = it }
+                    )
+                }
+                is BottomNavItem.Activity -> ActivityScreen()
+                is BottomNavItem.Account -> AccountScreen()
             }
         }
     }

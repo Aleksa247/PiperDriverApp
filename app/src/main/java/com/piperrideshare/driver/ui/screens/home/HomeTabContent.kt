@@ -17,12 +17,14 @@ import com.piperrideshare.driver.api.models.response.websocket.RiderInfoResponse
 import com.piperrideshare.driver.api.models.response.websocket.ZoneInfoResponse
 import com.piperrideshare.driver.ui.components.*
 import com.piperrideshare.driver.ui.viewModel.WebSocketViewModel
+import kotlinx.coroutines.launch
 
 /**
  * HomeTabContent - Main driver interface with state-based UI
  *
  * This replaces the complex boolean state logic with simple backend state mapping
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeTabContent(
     context: Context,
@@ -44,82 +46,95 @@ fun HomeTabContent(
     onPopupDismiss: () -> Unit,
     setMapViewInstance: (MapView) -> Unit,
 ) {
-    // Show loading overlay
-    PiperDriverAlert(showLoading, showLoadingText)
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Map is always shown
-        MapViewContainer(
-            onMapReady = { mapView ->
-                setMapViewInstance(mapView)
-                enableLocationComponent(mapView)
-            },
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 56.dp),
+    if (currentAvailabilityState in listOf(DriverAvailabilityState.EN_ROUTE, DriverAvailabilityState.ARRIVED, DriverAvailabilityState.IN_TRIP)) {
+        val scaffoldState = rememberBottomSheetScaffoldState(
+            bottomSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.PartiallyExpanded, skipHiddenState = true)
         )
+        val coroutineScope = rememberCoroutineScope()
 
-        // State-specific UI overlay
-        when (currentAvailabilityState) {
-            DriverAvailabilityState.OFFLINE -> {
-                OfflineStateUI(
-                    zoneInfo = zoneInfo,
-                    onGoOnline = onToggleOnline
+        BottomSheetScaffold(
+            scaffoldState = scaffoldState,
+            sheetContent = {
+                if (rideModel != null) {
+                    RideAssignmentBottomSheet(
+                        rideModel = rideModel,
+                        riderInfo = riderInfo,
+                        currentRideStatus = when (currentAvailabilityState) {
+                            DriverAvailabilityState.EN_ROUTE -> "accepted"
+                            DriverAvailabilityState.ARRIVED -> "driver_arrived"
+                            DriverAvailabilityState.IN_TRIP -> "in_progress"
+                            else -> "unknown"
+                        },
+                        onArriveAtPickup = { rideModel.rideId?.let { viewModel.arriveAtPickup(it) } },
+                        onStartRide = { rideModel.rideId?.let { viewModel.startRide(it) } },
+                        onCompleteRide = { rideModel.rideId?.let { viewModel.completeRide(it, 0.0) } },
+                        onCallRider = { /* TODO */ }
+                    )
+                }
+            },
+            sheetPeekHeight = 120.dp
+        ) {
+            // Show loading overlay
+            PiperDriverAlert(showLoading, showLoadingText)
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Map is always shown
+                MapViewContainer(
+                    onMapReady = { mapView ->
+                        setMapViewInstance(mapView)
+                        enableLocationComponent(mapView)
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 56.dp),
                 )
             }
+        }
 
-            DriverAvailabilityState.ONLINE -> {
-                OnlineStateUI(
-                    rideRequest = rideRequest,
-                    showRidePopup = showRidePopup,
-                    onGoOffline = onToggleOnline,
-                    onAcceptRide = onAcceptRide,
-                    onDeclineRide = onDeclineRide,
-                    onPopupDismiss = onPopupDismiss
-                )
+        // Handle bottom sheet state based on availability state
+        LaunchedEffect(currentAvailabilityState) {
+            if (currentAvailabilityState in listOf(DriverAvailabilityState.EN_ROUTE, DriverAvailabilityState.ARRIVED, DriverAvailabilityState.IN_TRIP)) {
+                coroutineScope.launch { scaffoldState.bottomSheetState.expand() }
+            } else {
+                coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
             }
+        }
+    } else {
+        // Show the map and the online/offline UI
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Map is always shown
+            MapViewContainer(
+                onMapReady = { mapView ->
+                    setMapViewInstance(mapView)
+                    enableLocationComponent(mapView)
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 56.dp),
+            )
 
-            DriverAvailabilityState.EN_ROUTE -> {
-                EnRouteStateUI(
-                    rideModel = rideModel,
-                    riderInfo = riderInfo,
-                    onArriveAtPickup = {
-                        rideModel?.rideId?.let { rideId ->
-                            viewModel.arriveAtPickup(rideId)
-                        }
-                    }
-                )
-            }
+            // State-specific UI overlay
+            when (currentAvailabilityState) {
+                DriverAvailabilityState.OFFLINE -> {
+                    OfflineStateUI(
+                        zoneInfo = zoneInfo,
+                        onGoOnline = onToggleOnline
+                    )
+                }
 
-            DriverAvailabilityState.ARRIVED -> {
-                ArrivedStateUI(
-                    rideModel = rideModel,
-                    riderInfo = riderInfo,
-                    onStartRide = {
-                        rideModel?.rideId?.let { rideId ->
-                            viewModel.startRide(rideId)
-                        }
-                    }
-                )
-            }
-
-            DriverAvailabilityState.IN_TRIP -> {
-                InTripStateUI(
-                    rideModel = rideModel,
-                    riderInfo = riderInfo,
-                    onCompleteRide = {
-                        rideModel?.rideId?.let { rideId ->
-                            // TODO: Calculate actual distance
-                            val distance = calculateDistanceInKM(
-                                rideModel.pickupLocation?.latitude ?: 0.0,
-                                rideModel.pickupLocation?.longitude ?: 0.0,
-                                rideModel.dropoffLocation?.latitude ?: 0.0,
-                                rideModel.dropoffLocation?.longitude ?: 0.0,
-                            )
-                            viewModel.completeRide(rideId, distance)
-                        }
-                    }
-                )
+                DriverAvailabilityState.ONLINE -> {
+                    OnlineStateUI(
+                        rideRequest = rideRequest,
+                        showRidePopup = showRidePopup,
+                        onGoOffline = onToggleOnline,
+                        onAcceptRide = onAcceptRide,
+                        onDeclineRide = onDeclineRide,
+                        onPopupDismiss = onPopupDismiss
+                    )
+                }
+                else -> {
+                    // Do nothing
+                }
             }
         }
     }
@@ -238,129 +253,6 @@ private fun OnlineStateUI(
             onAccept = onAcceptRide,
             onDecline = onDeclineRide,
             onDismiss = onPopupDismiss,
-        )
-    }
-}
-
-@Composable
-private fun EnRouteStateUI(
-    rideModel: RideModelChangedResponse?,
-    riderInfo: RiderInfoResponse?,
-    onArriveAtPickup: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 56.dp, vertical = 120.dp),
-        verticalArrangement = Arrangement.Bottom,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        PiperDriverButton(
-            text = "Arrive at Pickup",
-            onClick = onArriveAtPickup,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF2196F3),
-                contentColor = Color.White,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-        )
-    }
-
-    // Show ride assignment bottom sheet
-    if (rideModel != null) {
-        RideAssignmentBottomSheet(
-            rideModel = rideModel,
-            riderInfo = riderInfo,
-            currentRideStatus = "accepted",
-            onArriveAtPickup = onArriveAtPickup,
-            onStartRide = { },
-            onCompleteRide = { },
-            onCallRider = { /* TODO: Implement call rider */ },
-            onDismiss = { /* Bottom sheet is persistent */ }
-        )
-    }
-}
-
-@Composable
-private fun ArrivedStateUI(
-    rideModel: RideModelChangedResponse?,
-    riderInfo: RiderInfoResponse?,
-    onStartRide: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 56.dp, vertical = 120.dp),
-        verticalArrangement = Arrangement.Bottom,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        PiperDriverButton(
-            text = "Start Ride",
-            onClick = onStartRide,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF4CAF50),
-                contentColor = Color.White,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-        )
-    }
-
-    // Show ride assignment bottom sheet
-    if (rideModel != null) {
-        RideAssignmentBottomSheet(
-            rideModel = rideModel,
-            riderInfo = riderInfo,
-            currentRideStatus = "driver_arrived",
-            onArriveAtPickup = { },
-            onStartRide = onStartRide,
-            onCompleteRide = { },
-            onCallRider = { /* TODO: Implement call rider */ },
-            onDismiss = { /* Bottom sheet is persistent */ }
-        )
-    }
-}
-
-@Composable
-private fun InTripStateUI(
-    rideModel: RideModelChangedResponse?,
-    riderInfo: RiderInfoResponse?,
-    onCompleteRide: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 56.dp, vertical = 120.dp),
-        verticalArrangement = Arrangement.Bottom,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        PiperDriverButton(
-            text = "Complete Ride",
-            onClick = onCompleteRide,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFF9800),
-                contentColor = Color.White,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-        )
-    }
-
-    // Show ride assignment bottom sheet
-    if (rideModel != null) {
-        RideAssignmentBottomSheet(
-            rideModel = rideModel,
-            riderInfo = riderInfo,
-            currentRideStatus = "in_progress",
-            onArriveAtPickup = { },
-            onStartRide = { },
-            onCompleteRide = onCompleteRide,
-            onCallRider = { /* TODO: Implement call rider */ },
-            onDismiss = { /* Bottom sheet is persistent */ }
         )
     }
 }
