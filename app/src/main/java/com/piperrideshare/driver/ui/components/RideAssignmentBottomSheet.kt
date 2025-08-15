@@ -3,6 +3,7 @@ package com.piperrideshare.driver.ui.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -20,6 +21,7 @@ import coil.request.ImageRequest
 import com.piperrideshare.driver.api.models.response.websocket.LatLng
 import com.piperrideshare.driver.api.models.response.websocket.RideModelChangedResponse
 import com.piperrideshare.driver.api.models.response.websocket.RiderInfoResponse
+import com.piperrideshare.driver.utils.openGoogleMaps
 
 @Composable
 fun RideAssignmentBottomSheet(
@@ -32,6 +34,7 @@ fun RideAssignmentBottomSheet(
     onCallRider: () -> Unit,
 ) {
     if (rideModel == null) return
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -140,7 +143,12 @@ fun RideAssignmentBottomSheet(
                     icon = "📍",
                     label = "Pickup",
                     location = rideModel.pickupLocation,
-                    isCurrentLocation = currentRideStatus == "accepted"
+                    isCurrentLocation = currentRideStatus == "accepted",
+                    onNavigate = {
+                        rideModel.pickupLocation?.let {
+                            openGoogleMaps(context, it.latitude, it.longitude)
+                        }
+                    }
                 )
 
                 // Dropoff Location
@@ -148,7 +156,12 @@ fun RideAssignmentBottomSheet(
                     icon = "🎯",
                     label = "Dropoff",
                     location = rideModel.dropoffLocation,
-                    isCurrentLocation = false
+                    isCurrentLocation = false,
+                    onNavigate = {
+                        rideModel.dropoffLocation?.let {
+                            openGoogleMaps(context, it.latitude, it.longitude)
+                        }
+                    }
                 )
 
                 // Trip Stats
@@ -212,7 +225,8 @@ private fun LocationRow(
     icon: String,
     label: String,
     location: LatLng?,
-    isCurrentLocation: Boolean
+    isCurrentLocation: Boolean,
+    onNavigate: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -247,6 +261,12 @@ private fun LocationRow(
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+        IconButton(onClick = onNavigate) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Navigate"
             )
         }
     }

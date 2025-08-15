@@ -18,6 +18,7 @@ import com.piperrideshare.driver.api.models.response.websocket.ZoneInfoResponse
 import com.piperrideshare.driver.ui.components.*
 import com.piperrideshare.driver.ui.viewModel.WebSocketViewModel
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /**
  * HomeTabContent - Main driver interface with state-based UI
@@ -170,6 +171,15 @@ fun HomeTabContent(
                     // Clear any existing routes
                     clearPickupMarkerAndRouteLine()
                 }
+            }
+        }
+    }
+
+    LaunchedEffect(rideModel?.riderCurrentLocation) {
+        rideModel?.riderCurrentLocation?.let { riderLocation ->
+            mapViewInstance?.let { mapView ->
+                Timber.d("Updating rider marker to: ${riderLocation.latitude}, ${riderLocation.longitude}")
+                updateRiderMarker(mapView, riderLocation.latitude, riderLocation.longitude)
             }
         }
     }
