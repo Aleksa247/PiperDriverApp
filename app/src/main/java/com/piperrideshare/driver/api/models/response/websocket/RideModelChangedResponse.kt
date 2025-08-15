@@ -17,6 +17,7 @@ data class RideModelChangedResponse(
     @SerializedName("driver_arrival_time") val driverArrivalTime: String?,
     @SerializedName("end_time") val endTime: String?,
     @SerializedName("estimated_fare") val estimatedFare: Int,
+    @SerializedName("driver_earning") val driverEarning: Int,
     @SerializedName("actual_fare") val actualFare: Int,
     @SerializedName("wait_time_fee") val waitTimeFee: Int,
     @SerializedName("driver_wait_timer_end") val driverWaitTimerEnd: String?,

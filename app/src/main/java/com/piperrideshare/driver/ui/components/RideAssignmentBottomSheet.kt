@@ -158,8 +158,8 @@ fun RideAssignmentBottomSheet(
                 ) {
                     StatItem(
                         icon = "💰",
-                        value = "$${String.format("%.2f", rideModel.estimatedFare.toDouble() / 100)}",
-                        label = "Est. Fare"
+                        value = "${String.format("%.2f", rideModel.driverEarning.toDouble() / 100)}",
+                        label = "Your Earning"
                     )
                     StatItem(
                         icon = "📏",
