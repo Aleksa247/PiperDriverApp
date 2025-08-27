@@ -19,18 +19,19 @@ fun ActivityScreen(viewModel: WebSocketViewModel = hiltViewModel()) {
     }
 
     val rideHistory by viewModel.rideHistory.collectAsState()
+    val rideHistoryValue = rideHistory
 
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
-        if (rideHistory == null) {
+        if (rideHistoryValue == null || rideHistoryValue.rides == null) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp)
             ) {
-                items(rideHistory!!.rides) { ride ->
+                items(rideHistoryValue.rides) { ride ->
                     RideHistoryItem(ride)
                 }
             }

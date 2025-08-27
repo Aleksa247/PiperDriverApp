@@ -30,6 +30,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import android.content.Context
 import com.piperrideshare.driver.utils.LocationTracker
+import com.piperrideshare.driver.services.DynamicLocationUpdateManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
@@ -49,11 +50,9 @@ constructor(
     private val repository: IWebSocketRepository,
     private val sessionManager: ISessionManager,
     private val driverStateManager: IDriverStateManager,
+    private val dynamicLocationManager: DynamicLocationUpdateManager,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
-
-    private var locationUpdateJob: Job? = null
-    private var isLocationUpdatesActive = false
 
     // ==============================================
     // BACKEND STATE - Single Source of Truth
@@ -123,8 +122,8 @@ constructor(
                 connect(token)
             }
 
-            // Start location updates
-            startPeriodicLocationUpdates()
+            // Start dynamic location updates
+            startDynamicLocationUpdates()
         }
     }
 
@@ -133,6 +132,8 @@ constructor(
             val state = driverStateManager.getCurrentState()
             state?.let {
                 Timber.d("STATE RESTORE: Restored driver state - ${it.availabilityState}, RideId: ${it.currentRideId}")
+                // Initialize dynamic location manager with restored state
+                dynamicLocationManager.updateDriverState(it.availabilityState)
             }
             _stateRestored.value = true
         } catch (e: Exception) {
@@ -226,6 +227,9 @@ constructor(
 
         // Persist state (this will automatically update all flows observing driverStateManager.driverState)
         driverStateManager.saveDriverState(newDriverState)
+        
+        // Update dynamic location manager with new driver state
+        dynamicLocationManager.updateDriverState(newDriverState.availabilityState)
         
         // Clear rider info and ride model if driver goes back to ONLINE (ride completed/cancelled)
         if (newDriverState.availabilityState == DriverAvailabilityState.ONLINE && 
@@ -359,36 +363,22 @@ constructor(
 
 
     // ==============================================
-    // LOCATION UPDATES
+    // DYNAMIC LOCATION UPDATES
     // ==============================================
 
-    fun startPeriodicLocationUpdates() {
-        if (isLocationUpdatesActive) return
-
-        locationUpdateJob = viewModelScope.launch {
-            isLocationUpdatesActive = true
-            val locationTracker = LocationTracker(context)
-
-            while (isLocationUpdatesActive) {
-                try {
-                    val location = locationTracker.getCurrentLocation()
-                    location?.let { (lat, lng) ->
-                        repository.sendUpdateLocation(lat, lng)
-                        driverStateManager.updateLocation(lat, lng)
-                    }
-                    delay(20_000)
-                } catch (e: Exception) {
-                    Timber.e("❌ LOCATION ERROR: ${e.message}")
-                    delay(20_000)
-                }
+    fun startDynamicLocationUpdates() {
+        dynamicLocationManager.startLocationUpdates(viewModelScope) { lat, lng ->
+            // Send location to backend
+            repository.sendUpdateLocation(lat, lng)
+            // Update local state
+            viewModelScope.launch {
+                driverStateManager.updateLocation(lat, lng)
             }
         }
     }
 
-    fun stopPeriodicLocationUpdates() {
-        isLocationUpdatesActive = false
-        locationUpdateJob?.cancel()
-        locationUpdateJob = null
+    fun stopDynamicLocationUpdates() {
+        dynamicLocationManager.stopLocationUpdates()
     }
 
     // ==============================================
@@ -397,7 +387,7 @@ constructor(
 
     fun disconnect() {
         viewModelScope.launch {
-            stopPeriodicLocationUpdates()
+            stopDynamicLocationUpdates()
             repository.disconnect()
         }
     }
@@ -409,6 +399,6 @@ constructor(
 
     override fun onCleared() {
         super.onCleared()
-        stopPeriodicLocationUpdates()
+        stopDynamicLocationUpdates()
     }
 }
