@@ -32,6 +32,8 @@ import com.piperrideshare.driver.api.models.response.websocket.RideRequestedResp
 @Composable
 fun RideRequestPopup(
     rideRequest: RideRequestedResponse,
+    pickupAddress: String?,
+    dropoffAddress: String?,
     onAccept: () -> Unit,
     onDecline: () -> Unit,
     onDismiss: () -> Unit,
@@ -95,7 +97,7 @@ fun RideRequestPopup(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = "${pickup.latitude}, ${pickup.longitude}",
+                                    text = pickupAddress ?: "Unknown Location", // styamamo- text display pickup address
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
@@ -117,7 +119,7 @@ fun RideRequestPopup(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = "${dropoff.latitude}, ${dropoff.longitude}",
+                                    text = dropoffAddress ?:"Unknown Location", // styamamo - text display dropoff address
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }

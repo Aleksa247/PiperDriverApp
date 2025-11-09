@@ -46,6 +46,9 @@ fun HomeTabContent(
     onDeclineRide: () -> Unit,
     onPopupDismiss: () -> Unit,
     setMapViewInstance: (MapView) -> Unit,
+    // styamamo - edit add pickupAddress and dropoffAddress as parameters
+    pickupAddress: String?,
+    dropoffAddress: String?,
 ) {
     if (currentAvailabilityState in listOf(DriverAvailabilityState.EN_ROUTE, DriverAvailabilityState.ARRIVED, DriverAvailabilityState.IN_TRIP)) {
         val scaffoldState = rememberBottomSheetScaffoldState(
@@ -129,7 +132,10 @@ fun HomeTabContent(
                         onGoOffline = onToggleOnline,
                         onAcceptRide = onAcceptRide,
                         onDeclineRide = onDeclineRide,
-                        onPopupDismiss = onPopupDismiss
+                        onPopupDismiss = onPopupDismiss,
+                        //styamamo - edit pass address parameters
+                        pickupAddress = pickupAddress,
+                        dropoffAddress = dropoffAddress
                     )
                 }
                 else -> {
@@ -232,7 +238,10 @@ private fun OnlineStateUI(
     onGoOffline: () -> Unit,
     onAcceptRide: () -> Unit,
     onDeclineRide: () -> Unit,
-    onPopupDismiss: () -> Unit
+    onPopupDismiss: () -> Unit,
+    //styamamo - add parameters
+    pickupAddress: String?,
+    dropoffAddress: String?
 ) {
     // Go Offline button
     Column(
@@ -259,6 +268,9 @@ private fun OnlineStateUI(
     if (showRidePopup && rideRequest != null) {
         RideRequestPopup(
             rideRequest = rideRequest,
+            //styamamo - edit pass address parameters
+            pickupAddress = pickupAddress,
+            dropoffAddress = dropoffAddress,
             onAccept = onAcceptRide,
             onDecline = onDeclineRide,
             onDismiss = onPopupDismiss,

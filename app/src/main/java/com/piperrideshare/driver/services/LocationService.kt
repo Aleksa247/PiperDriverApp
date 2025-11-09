@@ -18,7 +18,10 @@ import com.google.android.gms.location.Priority
 import com.piperrideshare.driver.R
 import com.piperrideshare.driver.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -26,10 +29,16 @@ class LocationService : Service() {
     private val binder = LocationBinder()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
+    //styamamo-edit
+    private lateinit var mapboxSearchService: MapboxSearchService
+
 
     companion object {
         val serviceRunning = MutableStateFlow(false)
         val currentLocation = MutableStateFlow<Location?>(null)
+        //styamamo-edit
+        val currentAddress = MutableStateFlow("Unknown Location")
+
     }
 
     @Inject
@@ -67,6 +76,15 @@ class LocationService : Service() {
                 override fun onLocationResult(locationResult: LocationResult) {
                     locationResult.lastLocation?.let { location ->
                         currentLocation.value = location
+
+                        //styamamo-edit reverse geocode call
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val address = mapboxSearchService.reverseGeocode(
+                                location.latitude,
+                                location.longitude
+                            )
+                            currentAddress.value = address
+                        }
                     }
                 }
             }

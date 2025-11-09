@@ -31,7 +31,9 @@ import kotlinx.coroutines.Job
 import android.content.Context
 import com.piperrideshare.driver.utils.LocationTracker
 import com.piperrideshare.driver.services.DynamicLocationUpdateManager
+import com.piperrideshare.driver.services.MapboxSearchService
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
 
 /**
@@ -51,6 +53,7 @@ constructor(
     private val sessionManager: ISessionManager,
     private val driverStateManager: IDriverStateManager,
     private val dynamicLocationManager: DynamicLocationUpdateManager,
+    private val mapboxSearchService: MapboxSearchService,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -160,6 +163,20 @@ constructor(
                     }
 
                     is RideModelChangedResponse -> {
+                        //styamamo - call mapboxSearchService to display addresses and push to ui
+                        viewModelScope.launch(Dispatchers.IO){
+                            //pickup address
+                            val pickupAddress = response.pickupLocation?.let{
+                                mapboxSearchService.reverseGeocode(it.latitude, it.longitude)
+                            }
+                            //dropoff address
+                            val dropoffAddress = response.dropoffLocation?.let{
+                                mapboxSearchService.reverseGeocode(it.latitude, it.longitude)
+                            }
+                            //new ridemodel
+                            val updateRide = response.copy(pickupAddress = pickupAddress, dropoffAddress = dropoffAddress)
+                            _rideModel.value = updateRide
+                        }
                         _rideModel.value = response
                         Timber.d("🚕 WEBSOCKET: Ride model updated - Status: ${response.status}")
                         
