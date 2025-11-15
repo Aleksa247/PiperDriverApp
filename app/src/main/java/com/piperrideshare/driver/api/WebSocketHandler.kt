@@ -36,8 +36,11 @@ class WebSocketHandler
     this.reconnecting = false
 
     val client = OkHttpClient()
+    val wsUrl = BuildConfig.BASE_URL
+        .replace("https://", "wss://")
+        .replace("http://", "ws://")
     val requestBuilder = Request.Builder()
-        .url("wss://${BuildConfig.BASE_URL}/api/drivers/ws")
+        .url("$wsUrl/api/drivers/ws")
         .addHeader("Authorization", "Bearer $token")
     
     // Add H3 header if provided
