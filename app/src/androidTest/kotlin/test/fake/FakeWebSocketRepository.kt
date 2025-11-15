@@ -16,7 +16,7 @@ class FakeWebSocketRepository : IWebSocketRepository {
 
     private var onMessageCallback: ((Any) -> Unit)? = null
 
-    override fun connect(
+    override suspend fun connect(
         token: String,
         onMessage: (Any) -> Unit,
     ) {

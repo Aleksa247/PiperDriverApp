@@ -6,7 +6,8 @@ import org.json.JSONObject
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
-
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 /**
  * H3Service - Converts GPS coordinates to H3 geospatial index
  *
@@ -32,26 +33,26 @@ class H3Service @Inject constructor() {
         lat: Double,
         lng: Double,
         resolution: Int = 9
-    ): String? {
-        return try {
+    ): String? = withContext(Dispatchers.IO) {
+        return@withContext try {
             val url = "$h3WorkerUrl/h3?lat=$lat&lng=$lng&resolution=$resolution"
             val request = Request.Builder()
                 .url(url)
                 .build()
 
             val response = client.newCall(request).execute()
-            
+
             if (!response.isSuccessful) {
                 Timber.e("❌ H3 API error: ${response.code}")
-                return null
+                return@withContext null
             }
 
-            val body = response.body?.string() ?: return null
+            val body = response.body?.string() ?: return@withContext null
             val json = JSONObject(body)
-            
+
             val h3Index = json.getString("h3_index")
             Timber.d("✅ H3 index for ($lat, $lng): $h3Index")
-            
+
             h3Index
         } catch (e: Exception) {
             Timber.e("❌ H3 conversion error: ${e.message}")
