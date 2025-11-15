@@ -38,7 +38,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
 
-        buildConfigField("String", "BASE_URL", "\"piper-main-app.fly.dev\"")
+        buildConfigField("String", "BASE_URL", "\"api.thepiper.co\"")
 
         resValue("string", "mapbox_access_token", "\"$mapboxToken\"")
     }

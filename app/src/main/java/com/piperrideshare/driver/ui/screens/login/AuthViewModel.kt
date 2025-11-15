@@ -57,6 +57,11 @@ class AuthViewModel
                             name = response.name,
                         )
                     }
+
+                    // print the response
+
+
+
                     is ApiResult.Failure -> {
                         Timber.e("❌ LOGIN FAILURE: ${result.message} (code=${result.code})")
                     }
