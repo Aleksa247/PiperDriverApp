@@ -147,68 +147,71 @@ constructor(
     // ==============================================
 
     private fun connect(token: String) {
-        Timber.d("🔗 WEBSOCKET: Connecting with token")
+        // O@Thomas - BREAKPOINT HERE: WebSocket connection established
+        Timber.d("🔗 WEBSOCKET: Connection established with token: ${token.take(10)}...")
 
-        repository.connect(token) { response ->
-            viewModelScope.launch {
-                _showLoading.value = false
-                Timber.d("📨 WEBSOCKET: Message received - Type: ${response.javaClass.simpleName}")
+        viewModelScope.launch {
+            repository.connect(token) { response ->
+                viewModelScope.launch {
+                    _showLoading.value = false
+                    Timber.d("📨 WEBSOCKET: Message received - Type: ${response.javaClass.simpleName}")
 
-                when (response) {
-                    is DriverModelChangedResponse -> {
-                        handleDriverModelChanged(response)
-                    }
-
-                    is RideModelChangedResponse -> {
-                        _rideModel.value = response
-                        Timber.d("🚕 WEBSOCKET: Ride model updated - Status: ${response.status}")
-                        
-                        // Request rider info if we don't have it yet and have a valid ride
-                        if (_riderInfo.value == null && response.riderId.isNotBlank()) {
-                            repository.sendGetRiderInfo(response.rideId, response.riderId)
+                    when (response) {
+                        is DriverModelChangedResponse -> {
+                            handleDriverModelChanged(response)
                         }
-                    }
 
-                    is RideRequestedResponse -> {
-                        _rideRequest.value = response
-                        Timber.d("🚗 WEBSOCKET: New ride request - ID: ${response.rideId}")
-                    }
+                        is RideModelChangedResponse -> {
+                            _rideModel.value = response
+                            Timber.d("🚕 WEBSOCKET: Ride model updated - Status: ${response.status}")
 
-                    is ZoneInfoResponse -> {
-                        _zoneInfo.value = response
-                        Timber.d("🗺️ WEBSOCKET: Zone info received - ${response.payload.zone.name}")
-                    }
+                            // Request rider info if we don't have it yet and have a valid ride
+                            if (_riderInfo.value == null && response.riderId.isNotBlank()) {
+                                repository.sendGetRiderInfo(response.rideId, response.riderId)
+                            }
+                        }
 
-                    is RiderInfoResponse -> {
-                        _riderInfo.value = response
-                        Timber.d("👤 WEBSOCKET: Rider info received")
-                    }
+                        is RideRequestedResponse -> {
+                            _rideRequest.value = response
+                            Timber.d("🚗 WEBSOCKET: New ride request - ID: ${response.rideId}")
+                        }
 
-                    is ActionResponse -> {
-                        handleActionResponse(response)
-                    }
+                        is ZoneInfoResponse -> {
+                            _zoneInfo.value = response
+                            Timber.d("🗺️ WEBSOCKET: Zone info received - ${response.payload.zone.name}")
+                        }
 
-                    // ==============================================
-                    // NEW RESPONSE HANDLERS FOR TASK 2.1
-                    // ==============================================
+                        is RiderInfoResponse -> {
+                            _riderInfo.value = response
+                            Timber.d("👤 WEBSOCKET: Rider info received")
+                        }
 
-                    is ProfileResponse -> {
-                        _profileResponse.value = response
-                        Timber.d("📋 WEBSOCKET: Profile response received")
-                    }
+                        is ActionResponse -> {
+                            handleActionResponse(response)
+                        }
 
-                    is EarningsResponse -> {
-                        _earningsResponse.value = response
-                        Timber.d("💰 WEBSOCKET: Earnings response received")
-                    }
+                        // ==============================================
+                        // NEW RESPONSE HANDLERS FOR TASK 2.1
+                        // ==============================================
 
-                    is RideHistoryResponse -> {
-                        _rideHistory.value = response
-                        Timber.d("📜 WEBSOCKET: Ride history response received")
-                    }
+                        is ProfileResponse -> {
+                            _profileResponse.value = response
+                            Timber.d("📋 WEBSOCKET: Profile response received")
+                        }
 
-                    is UnknownResponse -> {
-                        Timber.d("❓ WEBSOCKET: Unknown message - ${response.raw}")
+                        is EarningsResponse -> {
+                            _earningsResponse.value = response
+                            Timber.d("💰 WEBSOCKET: Earnings response received")
+                        }
+
+                        is RideHistoryResponse -> {
+                            _rideHistory.value = response
+                            Timber.d("📜 WEBSOCKET: Ride history response received")
+                        }
+
+                        is UnknownResponse -> {
+                            Timber.d("❓ WEBSOCKET: Unknown message - ${response.raw}")
+                        }
                     }
                 }
             }

@@ -18,7 +18,6 @@ import javax.inject.Singleton
  * The base URL is configured via BuildConfig.BASE_URL which should be
  * set in the build configuration for different environments.
  *
- * @author Thomas Woodfin
  */
 @Module
 @InstallIn(SingletonComponent::class)
