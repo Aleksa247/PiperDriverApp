@@ -16,22 +16,36 @@ import com.piperrideshare.driver.api.models.request.UpdateLocationRequest
 import com.piperrideshare.driver.api.models.request.WebSocketRequest
 import com.piperrideshare.driver.api.models.response.websocket.WebSocketResponseParser
 import com.piperrideshare.driver.data.network.WebSocketResult
+import com.piperrideshare.driver.services.H3Service
 import com.piperrideshare.driver.services.IWebSocketRepository
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.piperrideshare.driver.utils.LocationTracker
+import timber.log.Timber
+
 
 @Singleton
 class WebSocketRepository
     @Inject
     constructor(
         private val webSocketHandler: WebSocketHandler,
+        private val h3Service: H3Service,
+        private val locationTracker: LocationTracker,
     ) : IWebSocketRepository {
-        override fun connect(
+        override suspend fun connect(
             token: String,
             onMessage: (Any) -> Unit,
         ) {
-            webSocketHandler.connect(token) { result ->
+            // get current location
+            val location = locationTracker.getCurrentLocation()
+
+            // convert to h3 index if location is available
+            val h3Index = location?.let { (lat, lng) ->
+                h3Service.getH3Index(lat, lng, resolution = 9)
+            }
+
+            webSocketHandler.connect(token, h3Index) { result ->
                 when (result) {
                     is WebSocketResult.Message -> {
                         try {

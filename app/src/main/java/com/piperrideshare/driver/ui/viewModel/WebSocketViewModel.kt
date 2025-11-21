@@ -34,6 +34,7 @@ import com.piperrideshare.driver.services.DynamicLocationUpdateManager
 import com.piperrideshare.driver.services.MapboxSearchService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
 /**
@@ -87,6 +88,12 @@ constructor(
 
     private val _rideHistory = MutableStateFlow<RideHistoryResponse?>(null)
     val rideHistory = _rideHistory.asStateFlow()
+
+    private val _rideRequestPickupAddress = MutableStateFlow<String?>(null)
+    val rideRequestPickupAddress: StateFlow<String?> = _rideRequestPickupAddress
+
+    private val _rideRequestDropoffAddress = MutableStateFlow<String?>(null)
+    val rideRequestDropoffAddress: StateFlow<String?> = _rideRequestDropoffAddress
 
     // ==============================================
     // NEW STATE FOR TASK 2.1
@@ -150,82 +157,90 @@ constructor(
     // ==============================================
 
     private fun connect(token: String) {
-        Timber.d("🔗 WEBSOCKET: Connecting with token")
+        Timber.d("🔗 WEBSOCKET: Connection established with token: ${token.take(10)}...")
 
-        repository.connect(token) { response ->
-            viewModelScope.launch {
-                _showLoading.value = false
-                Timber.d("📨 WEBSOCKET: Message received - Type: ${response.javaClass.simpleName}")
+        viewModelScope.launch {
+            repository.connect(token) { response ->
+                viewModelScope.launch {
+                    _showLoading.value = false
+                    Timber.d("📨 WEBSOCKET: Message received - Type: ${response.javaClass.simpleName}")
 
-                when (response) {
-                    is DriverModelChangedResponse -> {
-                        handleDriverModelChanged(response)
-                    }
-
-                    is RideModelChangedResponse -> {
-                        //styamamo - call mapboxSearchService to display addresses and push to ui
-                        viewModelScope.launch(Dispatchers.IO){
-                            //pickup address
-                            val pickupAddress = response.pickupLocation?.let{
-                                mapboxSearchService.reverseGeocode(it.latitude, it.longitude)
-                            }
-                            //dropoff address
-                            val dropoffAddress = response.dropoffLocation?.let{
-                                mapboxSearchService.reverseGeocode(it.latitude, it.longitude)
-                            }
-                            //new ridemodel
-                            val updateRide = response.copy(pickupAddress = pickupAddress, dropoffAddress = dropoffAddress)
-                            _rideModel.value = updateRide
+                    when (response) {
+                        is DriverModelChangedResponse -> {
+                            handleDriverModelChanged(response)
                         }
-                        _rideModel.value = response
-                        Timber.d("🚕 WEBSOCKET: Ride model updated - Status: ${response.status}")
-                        
-                        // Request rider info if we don't have it yet and have a valid ride
-                        if (_riderInfo.value == null && response.riderId.isNotBlank()) {
-                            repository.sendGetRiderInfo(response.rideId, response.riderId)
+
+                        is RideModelChangedResponse -> {
+                            //styamamo - call mapboxSearchService to display addresses and push to ui
+                            Timber.d("🚕 WEBSOCKET: Ride model updated - Status: ${response.status}")
+                            _rideModel.value = response
+
+                            viewModelScope.launch(Dispatchers.IO) {
+                                //pickup address
+                                val pickupAddress = response.pickupLocation?.let {
+                                    mapboxSearchService.reverseGeocode(it.latitude, it.longitude)
+                                }
+                                //dropoff address
+                                val dropoffAddress = response.dropoffLocation?.let {
+                                    mapboxSearchService.reverseGeocode(it.latitude, it.longitude)
+                                }
+                                //new ridemodel
+                                if (_rideModel.value?.rideId == response.rideId) {
+                                    _rideModel.value = _rideModel.value?.copy(
+                                        pickupAddress = pickupAddress,
+                                        dropoffAddress = dropoffAddress
+                                    )
+                                    Timber.d("🚕 WEBSOCKET: Addresses fetched: Pickup: $pickupAddress, Dropoff: $dropoffAddress")
+                                }
+                            }
+
+                            // Request rider info if we don't have it yet and have a valid ride
+                            if (_riderInfo.value == null && response.riderId.isNotBlank()) {
+                                repository.sendGetRiderInfo(response.rideId, response.riderId)
+                            }
                         }
-                    }
 
-                    is RideRequestedResponse -> {
-                        _rideRequest.value = response
-                        Timber.d("🚗 WEBSOCKET: New ride request - ID: ${response.rideId}")
-                    }
+                        is RideRequestedResponse -> {
+                            _rideRequest.value = response
+                            Timber.d("🚗 WEBSOCKET: New ride request - ID: ${response.rideId}")
+                        }
 
-                    is ZoneInfoResponse -> {
-                        _zoneInfo.value = response
-                        Timber.d("🗺️ WEBSOCKET: Zone info received - ${response.payload.zone.name}")
-                    }
+                        is ZoneInfoResponse -> {
+                            _zoneInfo.value = response
+                            Timber.d("🗺️ WEBSOCKET: Zone info received - ${response.payload.zone.name}")
+                        }
 
-                    is RiderInfoResponse -> {
-                        _riderInfo.value = response
-                        Timber.d("👤 WEBSOCKET: Rider info received")
-                    }
+                        is RiderInfoResponse -> {
+                            _riderInfo.value = response
+                            Timber.d("👤 WEBSOCKET: Rider info received")
+                        }
 
-                    is ActionResponse -> {
-                        handleActionResponse(response)
-                    }
+                        is ActionResponse -> {
+                            handleActionResponse(response)
+                        }
 
-                    // ==============================================
-                    // NEW RESPONSE HANDLERS FOR TASK 2.1
-                    // ==============================================
+                        // ==============================================
+                        // NEW RESPONSE HANDLERS FOR TASK 2.1
+                        // ==============================================
 
-                    is ProfileResponse -> {
-                        _profileResponse.value = response
-                        Timber.d("📋 WEBSOCKET: Profile response received")
-                    }
+                        is ProfileResponse -> {
+                            _profileResponse.value = response
+                            Timber.d("📋 WEBSOCKET: Profile response received")
+                        }
 
-                    is EarningsResponse -> {
-                        _earningsResponse.value = response
-                        Timber.d("💰 WEBSOCKET: Earnings response received")
-                    }
+                        is EarningsResponse -> {
+                            _earningsResponse.value = response
+                            Timber.d("💰 WEBSOCKET: Earnings response received")
+                        }
 
-                    is RideHistoryResponse -> {
-                        _rideHistory.value = response
-                        Timber.d("📜 WEBSOCKET: Ride history response received")
-                    }
+                        is RideHistoryResponse -> {
+                            _rideHistory.value = response
+                            Timber.d("📜 WEBSOCKET: Ride history response received")
+                        }
 
-                    is UnknownResponse -> {
-                        Timber.d("❓ WEBSOCKET: Unknown message - ${response.raw}")
+                        is UnknownResponse -> {
+                            Timber.d("❓ WEBSOCKET: Unknown message - ${response.raw}")
+                        }
                     }
                 }
             }

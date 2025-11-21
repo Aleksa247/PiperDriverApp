@@ -333,13 +333,21 @@ private fun DriverStatusCard(
                     )
                 }
 
-                driverState.currentLocation?.let { (lat, lng) ->
-                    Text(
-                        text = "Location: ${String.format("%.4f", lat)}, ${String.format("%.4f", lng)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                //styamamo - edit display address
+                val locationText = when {
+                    driverState.currentAddress != null -> driverState.currentAddress
+                    driverState.currentLocation != null -> {
+                        val (lat, lng) = driverState.currentLocation
+                        "Location: ${String.format("%.4f", lat)}, ${String.format("%.4f", lng)}"
+                    }
+
+                    else -> "No location available"
                 }
+                Text(
+                    text = locationText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             } else {
                 Text("Loading driver status...")
             }

@@ -38,8 +38,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
 
-        buildConfigField("String", "BASE_URL", "\"piper-main-app.fly.dev\"")
-
         resValue("string", "mapbox_access_token", "\"$mapboxToken\"")
     }
 
@@ -51,6 +49,7 @@ android {
                 "proguard-rules.pro",
             )
 
+            buildConfigField("String", "BASE_URL", "\"https://api.thepiper.co\"")
             buildConfigField("String", "DEFAULT_EMAIL", "\"\"")
             buildConfigField("String", "DEFAULT_PASSWORD", "\"\"")
         }
@@ -58,6 +57,7 @@ android {
             isMinifyEnabled = false
             isDebuggable = true
 
+            buildConfigField("String", "BASE_URL", "\"https://api.thepiper.co\"")
             buildConfigField("String", "DEFAULT_EMAIL", "\"emma.wilson@thepiper.co\"")
             buildConfigField("String", "DEFAULT_PASSWORD", "\"Test@123\"")
         }

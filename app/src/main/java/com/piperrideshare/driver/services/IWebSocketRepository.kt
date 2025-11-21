@@ -1,7 +1,7 @@
 package com.piperrideshare.driver.services
 
 interface IWebSocketRepository {
-    fun connect(
+    suspend fun connect(
         token: String,
         onMessage: (Any) -> Unit,
     )

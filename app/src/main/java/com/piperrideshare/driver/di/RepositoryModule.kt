@@ -5,6 +5,10 @@ import com.piperrideshare.driver.domain.repository.AuthRepository
 import com.piperrideshare.driver.domain.repository.WebSocketRepository
 import com.piperrideshare.driver.repository.AuthRepositoryImpl
 import com.piperrideshare.driver.services.IWebSocketRepository
+import android.content.Context
+import com.piperrideshare.driver.services.H3Service
+import com.piperrideshare.driver.utils.LocationTracker
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -30,4 +34,14 @@ object RepositoryProvidesModule {
     @Provides
     @Singleton
     fun provideWebSocketHandler(): WebSocketHandler = WebSocketHandler()
+
+    @Provides
+    @Singleton
+    fun provideH3Service(): H3Service = H3Service()
+
+    @Provides
+    @Singleton
+    fun provideLocationTracker(
+        @ApplicationContext context: Context
+    ): LocationTracker = LocationTracker(context)
 }

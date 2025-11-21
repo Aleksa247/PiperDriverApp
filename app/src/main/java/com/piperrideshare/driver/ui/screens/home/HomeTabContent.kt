@@ -47,8 +47,8 @@ fun HomeTabContent(
     onPopupDismiss: () -> Unit,
     setMapViewInstance: (MapView) -> Unit,
     // styamamo - edit add pickupAddress and dropoffAddress as parameters
-    pickupAddress: String?,
-    dropoffAddress: String?,
+    rideRequestPickupAddress: String?,
+    rideRequestDropoffAddress: String?,
 ) {
     if (currentAvailabilityState in listOf(DriverAvailabilityState.EN_ROUTE, DriverAvailabilityState.ARRIVED, DriverAvailabilityState.IN_TRIP)) {
         val scaffoldState = rememberBottomSheetScaffoldState(
@@ -134,8 +134,8 @@ fun HomeTabContent(
                         onDeclineRide = onDeclineRide,
                         onPopupDismiss = onPopupDismiss,
                         //styamamo - edit pass address parameters
-                        pickupAddress = pickupAddress,
-                        dropoffAddress = dropoffAddress
+                        pickupAddress = rideRequestPickupAddress,
+                        dropoffAddress = rideRequestDropoffAddress
                     )
                 }
                 else -> {

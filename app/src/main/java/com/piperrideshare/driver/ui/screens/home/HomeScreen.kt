@@ -76,9 +76,9 @@ fun HomeScreen(
     val showLoading by viewModel.showLoading.collectAsState()
     val showLoadingText by viewModel.showLoadingText.collectAsState()
     //styamamo - edit collect address states
-    //styamamo - edit collect address states
-    val pickupAddress = rideModel?.pickupAddress
-    val dropoffAddress = rideModel?.dropoffAddress
+    val rideRequestPickupAddress by viewModel.rideRequestPickupAddress.collectAsState(initial = null)
+    val rideRequestDropoffAddress by viewModel.rideRequestDropoffAddress.collectAsState(initial = null)
+
 
 
     // ==============================================
@@ -323,8 +323,8 @@ fun HomeScreen(
                         },
                         setMapViewInstance = { mapViewInstance = it },
                         //styamamo - edit add parameters for addresses
-                        pickupAddress = pickupAddress ?: "Loading pickup address...",
-                        dropoffAddress = dropoffAddress ?: "Loading dropoff address..."
+                        rideRequestPickupAddress = rideRequestPickupAddress,
+                        rideRequestDropoffAddress = rideRequestDropoffAddress
                     )
                 }
                 is BottomNavItem.Activity -> ActivityScreen()
