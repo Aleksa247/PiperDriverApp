@@ -157,6 +157,7 @@ constructor(
     // ==============================================
 
     private fun connect(token: String) {
+        // NOTE: H3 header is REQUIRED for driver WebSocket to work (backend returns 400 without it)
         Timber.d("🔗 WEBSOCKET: Connection established with token: ${token.take(10)}...")
 
         viewModelScope.launch {
@@ -171,20 +172,20 @@ constructor(
                         }
 
                         is RideModelChangedResponse -> {
-                            //styamamo - call mapboxSearchService to display addresses and push to ui
+                            // Fetch addresses for display using MapboxSearchService
                             Timber.d("🚕 WEBSOCKET: Ride model updated - Status: ${response.status}")
                             _rideModel.value = response
 
                             viewModelScope.launch(Dispatchers.IO) {
-                                //pickup address
+                                // Pickup address
                                 val pickupAddress = response.pickupLocation?.let {
                                     mapboxSearchService.reverseGeocode(it.latitude, it.longitude)
                                 }
-                                //dropoff address
+                                // Dropoff address
                                 val dropoffAddress = response.dropoffLocation?.let {
                                     mapboxSearchService.reverseGeocode(it.latitude, it.longitude)
                                 }
-                                //new ridemodel
+                                // Update ride model with addresses
                                 if (_rideModel.value?.rideId == response.rideId) {
                                     _rideModel.value = _rideModel.value?.copy(
                                         pickupAddress = pickupAddress,

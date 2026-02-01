@@ -24,7 +24,6 @@ import javax.inject.Singleton
 import com.piperrideshare.driver.utils.LocationTracker
 import timber.log.Timber
 
-
 @Singleton
 class WebSocketRepository
     @Inject
@@ -37,12 +36,16 @@ class WebSocketRepository
             token: String,
             onMessage: (Any) -> Unit,
         ) {
-            // get current location
+            // Get current location
             val location = locationTracker.getCurrentLocation()
 
-            // convert to h3 index if location is available
+            // Convert to H3 index if location is available
             val h3Index = location?.let { (lat, lng) ->
                 h3Service.getH3Index(lat, lng, resolution = 9)
+            }
+
+            if (h3Index == null) {
+                Timber.w("⚠️ No H3 index available, connecting without Piper-H3-Hex header")
             }
 
             webSocketHandler.connect(token, h3Index) { result ->
