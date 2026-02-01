@@ -2,651 +2,436 @@ package com.piperrideshare.driver.ui.viewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.piperrideshare.driver.api.models.DriverAvailabilityState
+import com.piperrideshare.driver.api.models.DriverState
 import com.piperrideshare.driver.api.models.response.websocket.ActionResponse
 import com.piperrideshare.driver.api.models.response.websocket.DriverModelChangedResponse
+import com.piperrideshare.driver.api.models.response.websocket.EarningsResponse
+import com.piperrideshare.driver.api.models.response.websocket.ProfileResponse
 import com.piperrideshare.driver.api.models.response.websocket.RideModelChangedResponse
 import com.piperrideshare.driver.api.models.response.websocket.RideRequestedResponse
+import com.piperrideshare.driver.api.models.response.websocket.RiderInfoResponse
+import com.piperrideshare.driver.api.models.response.websocket.RideHistoryResponse
 import com.piperrideshare.driver.api.models.response.websocket.UnknownResponse
 import com.piperrideshare.driver.api.models.response.websocket.ZoneInfoResponse
+import com.piperrideshare.driver.api.models.toDriverState
 import com.piperrideshare.driver.services.IWebSocketRepository
 import com.piperrideshare.driver.services.session.ISessionManager
-import com.piperrideshare.driver.services.state.IDriverStateManager
+import com.piperrideshare.driver.services.IDriverStateManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.UUID
-import javax.inject.Inject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import android.content.Context
 import com.piperrideshare.driver.utils.LocationTracker
+import com.piperrideshare.driver.services.DynamicLocationUpdateManager
+import com.piperrideshare.driver.services.MapboxSearchService
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
+import javax.inject.Inject
+
 /**
- * WebSocketViewModel - Manages real-time communication for driver operations
+ * Simplified WebSocketViewModel - Single Source of Truth from Backend
  *
- * This ViewModel handles all WebSocket-based communication between the driver app
- * and the ride-sharing server. It manages:
- * - Real-time ride requests
- * - Driver status updates
- * - Ride state changes
- * - Location updates
- * - Session management
+ * REMOVED: Multiple boolean flags (_rideAccepted, _arrivedAtPickupPoint, etc.)
+ * ADDED: Single backend state management + Task 2.1 features
  *
- * The ViewModel automatically connects to WebSocket on initialization and
- * processes incoming messages to update the UI state.
- *
- * @author Thomas Woodfin
+ * The backend sends driver_model_changed events that contain the definitive state.
+ * This ViewModel just reflects that state and sends commands.
  */
-
-
-
 @HiltViewModel
 class WebSocketViewModel
-    @Inject
-    constructor(
-        private val repository: IWebSocketRepository,
-        private val sessionManager: ISessionManager,
-        private val driverStateManager: IDriverStateManager,
-        @ApplicationContext private val context: Context,
-    ) : ViewModel() {
+@Inject
+constructor(
+    private val repository: IWebSocketRepository,
+    private val sessionManager: ISessionManager,
+    private val driverStateManager: IDriverStateManager,
+    private val dynamicLocationManager: DynamicLocationUpdateManager,
+    private val mapboxSearchService: MapboxSearchService,
+    @ApplicationContext private val context: Context,
+) : ViewModel() {
 
-        private var locationUpdateJob: Job? = null
-        private var isLocationUpdatesActive = false
+    // ==============================================
+    // BACKEND STATE - Single Source of Truth
+    // ==============================================
 
+    // Use the DriverStateManager as the single source of truth
+    val driverState = driverStateManager.driverState
 
-    // State flows for reactive UI updates
-        private val _rideRequest = MutableStateFlow<RideRequestedResponse?>(null)
-        val rideRequest = _rideRequest.asStateFlow()
+    // Convenience flows derived from backend state
+    val availabilityState = driverStateManager.availabilityState
+    val currentRideId = driverStateManager.currentRideId
+    val isOnline = driverStateManager.driverState.map { it?.availabilityState == DriverAvailabilityState.ONLINE }
 
-        private val _driverModel = MutableStateFlow<DriverModelChangedResponse?>(null)
-        val driverModel = _driverModel.asStateFlow()
+    // ==============================================
+    // OTHER WEBSOCKET DATA
+    // ==============================================
 
-        private val _rideModel = MutableStateFlow<RideModelChangedResponse?>(null)
-        val rideModel = _rideModel.asStateFlow()
+    private val _rideRequest = MutableStateFlow<RideRequestedResponse?>(null)
+    val rideRequest = _rideRequest.asStateFlow()
 
-        // Zone information state
-        private val _zoneInfo = MutableStateFlow<ZoneInfoResponse?>(null)
-        val zoneInfo = _zoneInfo.asStateFlow()
+    private val _rideModel = MutableStateFlow<RideModelChangedResponse?>(null)
+    val rideModel = _rideModel.asStateFlow()
 
-        // Driver state flows (now managed by DriverStateManager)
-        val isOnline = driverStateManager.isOnline
-        val currentRideId = driverStateManager.currentRideId
-        val rideStatus = driverStateManager.rideStatus
+    private val _zoneInfo = MutableStateFlow<ZoneInfoResponse?>(null)
+    val zoneInfo = _zoneInfo.asStateFlow()
 
-        // Ride Accepted Status
-        private val _rideAccepted = MutableStateFlow<Boolean>(false)
-        val rideAccepted = _rideAccepted.asStateFlow()
+    private val _riderInfo = MutableStateFlow<RiderInfoResponse?>(null)
+    val riderInfo = _riderInfo.asStateFlow()
 
-        // Arrived at Pickup Point
-        private val _arrivedAtPickupPoint = MutableStateFlow<Boolean>(false)
-        val arrivedAtPickupPoint = _arrivedAtPickupPoint.asStateFlow()
+    private val _rideHistory = MutableStateFlow<RideHistoryResponse?>(null)
+    val rideHistory = _rideHistory.asStateFlow()
 
-        // Ride Started Status
-        private val _rideStarted = MutableStateFlow<Boolean>(false)
-        val rideStarted = _rideStarted.asStateFlow()
+    private val _rideRequestPickupAddress = MutableStateFlow<String?>(null)
+    val rideRequestPickupAddress: StateFlow<String?> = _rideRequestPickupAddress
 
-        // Ride Completed Status
-        private val _rideCompleted = MutableStateFlow<Boolean>(false)
-        val rideCompleted = _rideCompleted.asStateFlow()
+    private val _rideRequestDropoffAddress = MutableStateFlow<String?>(null)
+    val rideRequestDropoffAddress: StateFlow<String?> = _rideRequestDropoffAddress
 
-        // Show Loading Status
-        private val _showLoading = MutableStateFlow<Boolean>(false)
-        val showLoading = _showLoading.asStateFlow()
+    // ==============================================
+    // NEW STATE FOR TASK 2.1
+    // ==============================================
 
-        // Show Loading Status
-        private val _showLoadingText = MutableStateFlow<String>("")
-        val showLoadingText = _showLoadingText.asStateFlow()
+    private val _profileResponse = MutableStateFlow<ProfileResponse?>(null)
+    val profileResponse = _profileResponse.asStateFlow()
 
-        // State restoration flag
-        private val _stateRestored = MutableStateFlow<Boolean>(false)
-        val stateRestored = _stateRestored.asStateFlow()
+    private val _earningsResponse = MutableStateFlow<EarningsResponse?>(null)
+    val earningsResponse = _earningsResponse.asStateFlow()
 
+    // ==============================================
+    // UI STATE (NOT BUSINESS LOGIC STATE)
+    // ==============================================
 
-    /**
-         * Initialize WebSocket connection on ViewModel creation
-         *
-         * Attempts to connect to the WebSocket server using the stored authentication token.
-         * This ensures real-time communication is established as soon as the driver
-         * reaches the home screen.
-         */
-        fun initialize() {
-            viewModelScope.launch {
+    private val _showLoading = MutableStateFlow<Boolean>(false)
+    val showLoading = _showLoading.asStateFlow()
 
-                restoreDriverState()
+    private val _showLoadingText = MutableStateFlow<String>("")
+    val showLoadingText = _showLoadingText.asStateFlow()
 
-                sessionManager.userToken.first()?.let { token ->
-                    connect(token)
-                }
-                startPeriodicLocationUpdates()
+    private val _stateRestored = MutableStateFlow<Boolean>(false)
+    val stateRestored = _stateRestored.asStateFlow()
+
+    // ==============================================
+    // INITIALIZATION
+    // ==============================================
+
+    fun initialize() {
+        viewModelScope.launch {
+            // Restore state from persistent storage
+            restoreDriverState()
+
+            // Connect to WebSocket
+            sessionManager.userToken.first()?.let { token ->
+                connect(token)
             }
+
+            // Start dynamic location updates
+            startDynamicLocationUpdates()
         }
+    }
 
-        /**
-         * Sync driver state with backend driver model
-         */
-        private suspend fun syncDriverState(driverModel: DriverModelChangedResponse) {
-            val currentOnlineState = driverStateManager.isOnline.first()
-            val currentRideId = driverStateManager.currentRideId.first()
-
-            // Sync online/offline state
-            val isBackendOnline = driverModel.availabilityState.equals("ONLINE", ignoreCase = true)
-            if (isBackendOnline != currentOnlineState) {
-                Timber.d("🔄 SYNC: Backend availability state: ${driverModel.availabilityState}, Local: $currentOnlineState")
-                Timber.d("🔄 SYNC: Updating local online state to match backend: $isBackendOnline")
-                driverStateManager.setOnlineState(isBackendOnline)
+    private suspend fun restoreDriverState() {
+        try {
+            val state = driverStateManager.getCurrentState()
+            state?.let {
+                Timber.d("STATE RESTORE: Restored driver state - ${it.availabilityState}, RideId: ${it.currentRideId}")
+                // Initialize dynamic location manager with restored state
+                dynamicLocationManager.updateDriverState(it.availabilityState)
             }
-
-            // Sync current ride state
-            val backendRideId = if (driverModel.currentRideID.isBlank()) null else driverModel.currentRideID
-            if (backendRideId != currentRideId) {
-                Timber.d("🔄 SYNC: Backend ride ID: '$backendRideId', Local: '$currentRideId'")
-
-                if (backendRideId != null && currentRideId == null) {
-                    // Backend has a ride we don't know about
-                    Timber.d("🔄 SYNC: Backend has active ride '${backendRideId}' that we don't know about")
-                    driverStateManager.setCurrentRide(backendRideId, "unknown")
-
-                    // Request active ride details to get full state
-                    getActiveRide()
-
-                } else if (backendRideId == null && currentRideId != null) {
-                    // We think we have a ride but backend doesn't
-                    Timber.d("🔄 SYNC: Backend shows no active ride, but we have '${currentRideId}'. Clearing local state.")
-                    driverStateManager.setCurrentRide(null, null)
-
-                    // Reset ride action states
-                    _rideAccepted.value = false
-                    _arrivedAtPickupPoint.value = false
-                    _rideStarted.value = false
-                    _rideCompleted.value = false
-                }
-            }
-
-            // Update location if provided
-            driverModel.currentLocation?.let { location ->
-                driverStateManager.updateLocation(location.latitude, location.longitude)
-            }
+            _stateRestored.value = true
+        } catch (e: Exception) {
+            Timber.e("STATE RESTORE ERROR: ${e.message}")
+            _stateRestored.value = true
         }
+    }
 
+    // ==============================================
+    // WEBSOCKET MESSAGE HANDLING
+    // ==============================================
 
-        /**
-         * Sync ride state with backend model
-         */
-        private suspend fun syncRideState(rideModel: RideModelChangedResponse) {
-            val currentRideId = driverStateManager.currentRideId.first()
+    private fun connect(token: String) {
+        // NOTE: H3 header is REQUIRED for driver WebSocket to work (backend returns 400 without it)
+        Timber.d("🔗 WEBSOCKET: Connection established with token: ${token.take(10)}...")
 
-            // If we have a ride in our state but backend shows different status, sync it
-            if (currentRideId == rideModel.rideId) {
-                when (rideModel.status.lowercase()) {
-                    "accepted" -> {
-                        if (!_rideAccepted.value) {
-                            Timber.d("🔄 SYNC: Backend shows ride accepted, updating local state")
-                            _rideAccepted.value = true
-                            driverStateManager.setCurrentRide(rideModel.rideId, "accepted")
-                        }
-                    }
-                    "driver_arrived" -> {
-                        if (!_arrivedAtPickupPoint.value) {
-                            Timber.d("🔄 SYNC: Backend shows driver arrived, updating local state")
-                            _rideAccepted.value = false
-                            _arrivedAtPickupPoint.value = true
-                            driverStateManager.setCurrentRide(rideModel.rideId, "driver_arrived")
-                        }
-                    }
-                    "in_progress" -> {
-                        if (!_rideStarted.value) {
-                            Timber.d("🔄 SYNC: Backend shows ride in progress, updating local state")
-                            _arrivedAtPickupPoint.value = false
-                            _rideStarted.value = true
-                            driverStateManager.setCurrentRide(rideModel.rideId, "in_progress")
-                        }
-                    }
-                    "completed" -> {
-                        Timber.d("🔄 SYNC: Backend shows ride completed, clearing local state")
-                        _rideAccepted.value = false
-                        _arrivedAtPickupPoint.value = false
-                        _rideStarted.value = false
-                        _rideCompleted.value = true
-                        driverStateManager.setCurrentRide(null, null)
-                    }
-                }
-            }
-        }
-
-        private suspend fun restoreDriverState() {
-            try {
-                val state = driverStateManager.getCurrentState()
-                Timber.d("STATE RESTORE: Restoring driver state - Online: ${state.isOnline}, RideId: ${state.currentRideId}")
-
-                // Restore ride action states based on ride status
-                when (state.rideStatus) {
-                    "accepted" -> _rideAccepted.value = true
-                    "driver_arrived" -> _arrivedAtPickupPoint.value = true
-                    "in_progress" -> _rideStarted.value = true
-                }
-
-                _stateRestored.value = true
-
-                if (state.isOnline) {
-                    Timber.d("STATE RESTORE: Driver was online, will sync with backend")
-                }
-
-            } catch (e: Exception) {
-                Timber.e("STATE RESTORE ERROR: ${e.message}")
-                _stateRestored.value = true
-            }
-        }
-        private suspend fun handleActionResponse(response: ActionResponse) {
-            if (response.error.isNotEmpty()) {
-                Timber.d("❌ WEBSOCKET: Action error - ${response.error}")
-            }
-
-            if (response.status == "success") {
-                when (response.action) {
-                    "go_online" -> {
-                        // Online state is already saved in goOnline() method
-                        Timber.d("✅ WEBSOCKET: Successfully went online")
-                    }
-                    "go_offline" -> {
-                        driverStateManager.setOnlineState(false)
-                        driverStateManager.setCurrentRide(null)
-                        Timber.d("✅ WEBSOCKET: Successfully went offline")
-                    }
-                    "accept_ride" -> {
-                        _rideAccepted.value = true
-                        driverStateManager.setCurrentRide(
-                            _rideRequest.value?.rideId,
-                            "accepted"
-                        )
-                    }
-                    "arrive_at_pickup" -> {
-                        _arrivedAtPickupPoint.value = true
-                        driverStateManager.setCurrentRide(
-                            driverStateManager.currentRideId.first(),
-                            "driver_arrived"
-                        )
-                    }
-                    "start_ride" -> {
-                        _rideStarted.value = true
-                        driverStateManager.setCurrentRide(
-                            driverStateManager.currentRideId.first(),
-                            "in_progress"
-                        )
-                    }
-                    "complete_ride" -> {
-                        _rideCompleted.value = true
-                        driverStateManager.setCurrentRide(null, null)
-                        // Reset all ride states
-                        _rideAccepted.value = false
-                        _arrivedAtPickupPoint.value = false
-                        _rideStarted.value = false
-                    }
-                }
-            }
-        }
-
-        fun startPeriodicLocationUpdates() {
-            if (isLocationUpdatesActive) {
-                Timber.d("📍 PERIODIC: Location updates already active")
-                return
-            }
-
-            locationUpdateJob = viewModelScope.launch {
-                isLocationUpdatesActive = true
-                val locationTracker = LocationTracker(context)
-
-                Timber.d("📍 PERIODIC: Starting location updates every 20 seconds")
-
-                while (isLocationUpdatesActive) {
-                    try {
-                        val location = locationTracker.getCurrentLocation()
-                        location?.let { (lat, lng) ->
-                            Timber.d("📍 PERIODIC: Sending location update - lat: $lat, lng: $lng")
-
-                            // Send WebSocket location update
-                            repository.sendUpdateLocation(lat, lng)
-
-                            // Update persistent state
-                            driverStateManager.updateLocation(lat, lng)
-                        }
-
-                        // Wait 20 seconds before next update
-                        delay(20_000)
-
-                    } catch (e: Exception) {
-                        Timber.e("❌ PERIODIC LOCATION ERROR: ${e.message}")
-                        // Continue the loop even if one update fails
-                        delay(20_000)
-                    }
-                }
-            }
-        }
-
-        /**
-         * Stop periodic location updates
-         */
-        fun stopPeriodicLocationUpdates() {
-            Timber.d("📍 PERIODIC: Stopping location updates")
-            isLocationUpdatesActive = false
-            locationUpdateJob?.cancel()
-            locationUpdateJob = null
-        }
-
-
-    /**
-         * Connect to WebSocket server with authentication token
-         *
-         * Establishes a persistent WebSocket connection and sets up message handling.
-         * All incoming messages are processed and update the appropriate UI state.
-         *
-         * @param token JWT authentication token for WebSocket connection
-         */
-        private fun connect(token: String) {
-            // O@Thomas - BREAKPOINT HERE: WebSocket connection established
-            Timber.d("🔗 WEBSOCKET: Connection established with token: ${token.take(10)}...")
-
+        viewModelScope.launch {
             repository.connect(token) { response ->
                 viewModelScope.launch {
-                    // Thomas Breakpoint: Set breakpoint here to see all incoming WebSocket messages
-                    // @Thomas - BREAKPOINT HERE: WebSocket message received
                     _showLoading.value = false
                     Timber.d("📨 WEBSOCKET: Message received - Type: ${response.javaClass.simpleName}")
 
-                    // Process different types of WebSocket responses
                     when (response) {
-                        // Thomas Breakpoint: Set breakpoint here to debug ride request handling
-                        is RideRequestedResponse -> {
-                            Timber.d("🚗 WEBSOCKET: New ride request - ID: ${response.rideId}")
-                            _rideRequest.value = response
-                        }
-
                         is DriverModelChangedResponse -> {
-                            Timber.d("👤 WEBSOCKET: Driver model updated - ID: ${response.driverId}")
-                            Timber.d("🔄 WEBSOCKET: AvailabilityState: ${response.availabilityState}, CurrentRideID: '${response.currentRideID}'")
-                            _driverModel.value = response
-
-                            // Sync driver state with backend
-                            syncDriverState(response)
+                            handleDriverModelChanged(response)
                         }
 
                         is RideModelChangedResponse -> {
+                            // Fetch addresses for display using MapboxSearchService
                             Timber.d("🚕 WEBSOCKET: Ride model updated - Status: ${response.status}")
                             _rideModel.value = response
 
-                            // Sync ride state with backend
-                            syncRideState(response)
+                            viewModelScope.launch(Dispatchers.IO) {
+                                // Pickup address
+                                val pickupAddress = response.pickupLocation?.let {
+                                    mapboxSearchService.reverseGeocode(it.latitude, it.longitude)
+                                }
+                                // Dropoff address
+                                val dropoffAddress = response.dropoffLocation?.let {
+                                    mapboxSearchService.reverseGeocode(it.latitude, it.longitude)
+                                }
+                                // Update ride model with addresses
+                                if (_rideModel.value?.rideId == response.rideId) {
+                                    _rideModel.value = _rideModel.value?.copy(
+                                        pickupAddress = pickupAddress,
+                                        dropoffAddress = dropoffAddress
+                                    )
+                                    Timber.d("🚕 WEBSOCKET: Addresses fetched: Pickup: $pickupAddress, Dropoff: $dropoffAddress")
+                                }
+                            }
+
+                            // Request rider info if we don't have it yet and have a valid ride
+                            if (_riderInfo.value == null && response.riderId.isNotBlank()) {
+                                repository.sendGetRiderInfo(response.rideId, response.riderId)
+                            }
                         }
+
+                        is RideRequestedResponse -> {
+                            _rideRequest.value = response
+                            Timber.d("🚗 WEBSOCKET: New ride request - ID: ${response.rideId}")
+                        }
+
                         is ZoneInfoResponse -> {
-                            // @Thomas - BREAKPOINT HERE: Zone information received
-                            Timber.d("🗺️ WEBSOCKET: Zone information received")
-                            Timber.d("📍 Zone ID: ${response.payload.zone.id}")
-                            Timber.d("🏙️ Zone Name: ${response.payload.zone.name}")
-                            Timber.d("🚗 Available Ride Types: ${response.payload.zone.rideTypeIds}")
-                            Timber.d("💰 Vehicle Types: ${response.payload.zone.vehicleTypes.map { it.name }}")
                             _zoneInfo.value = response
+                            Timber.d("🗺️ WEBSOCKET: Zone info received - ${response.payload.zone.name}")
                         }
-//                        is ActionResponse -> {
-//                            // @Thomas - BREAKPOINT HERE: Action response received
-//                            Timber.d("📨 WEBSOCKET: Action response - ${response.action} - Status: ${response.status}")
-//                            if (response.error.isNotEmpty()) {
-//                                Timber.d("❌ WEBSOCKET: Action error - ${response.error}")
-//                            }
-//
-//                            if (response.status == "success") {
-//                                when (response.action) {
-//                                    "accept_ride" -> _rideAccepted.value = true
-//                                    "arrive_at_pickup" -> _arrivedAtPickupPoint.value = true
-//                                    "start_ride" -> _rideStarted.value = true
-//                                    "complete_ride" -> _rideCompleted.value = true
-//                                }
-//                            }
-//                        }
+
+                        is RiderInfoResponse -> {
+                            _riderInfo.value = response
+                            Timber.d("👤 WEBSOCKET: Rider info received")
+                        }
+
                         is ActionResponse -> {
-                            Timber.d("📨 WEBSOCKET: Action response - ${response.action} - Status: ${response.status}")
                             handleActionResponse(response)
                         }
 
-                        // Thomas Breakpoint: Set breakpoint here if getting unknown message types
+                        // ==============================================
+                        // NEW RESPONSE HANDLERS FOR TASK 2.1
+                        // ==============================================
+
+                        is ProfileResponse -> {
+                            _profileResponse.value = response
+                            Timber.d("📋 WEBSOCKET: Profile response received")
+                        }
+
+                        is EarningsResponse -> {
+                            _earningsResponse.value = response
+                            Timber.d("💰 WEBSOCKET: Earnings response received")
+                        }
+
+                        is RideHistoryResponse -> {
+                            _rideHistory.value = response
+                            Timber.d("📜 WEBSOCKET: Ride history response received")
+                        }
+
                         is UnknownResponse -> {
-                            // @Thomas - BREAKPOINT HERE: Unknown WebSocket message
-                            Timber.d("❓ WEBSOCKET: Unknown message type - ${response.raw}")
+                            Timber.d("❓ WEBSOCKET: Unknown message - ${response.raw}")
                         }
                     }
                 }
             }
         }
+    }
 
-        /**
-         * Disconnect from WebSocket server
-         *
-         * Called when driver goes offline or logs out to clean up
-         * the WebSocket connection.
-         */
-        fun disconnect() {
-            viewModelScope.launch {
-                stopPeriodicLocationUpdates()
-//                goOffline()
-                repository.disconnect()
-            }
-        }
+    /**
+     * Handle driver model changes from backend - This is the SINGLE SOURCE OF TRUTH
+     */
+    private suspend fun handleDriverModelChanged(response: DriverModelChangedResponse) {
+        Timber.d("👤 WEBSOCKET: Driver model changed")
+        Timber.d("📊 BACKEND STATE: ${response.availabilityState}, RideID: '${response.currentRideID}'")
 
-        override fun onCleared() {
-            super.onCleared()
-            stopPeriodicLocationUpdates()
-        }
+        // Convert backend response to local state
+        val newDriverState = response.toDriverState()
 
-        /**
-         * Clear session data
-         *
-         * Removes all stored authentication and session information.
-         * Called during logout process.
-         */
-        suspend fun clearSession() {
-            sessionManager.clearSession()
-        }
-
-        /**
-         * Go online as a driver
-         *
-         * Sends a go online request to the server with current location
-         * and driver preferences. This makes the driver available for
-         * ride requests.
-         *
-         * @param latitude Current GPS latitude
-         * @param longitude Current GPS longitude
-         * @param deviceId Unique device identifier
-         * @param zoneId Operating zone identifier (optional, will use received zone info if null)
-         * @param rideTypeId Type of rides the driver accepts (optional, will use first available if null)
-         */
-        fun goOnline(
-            latitude: Double,
-            longitude: Double,
-            zoneId: String? = null,
-            rideTypeId: String? = null,
-        ) {
-            viewModelScope.launch {
-                _showLoading.value = true
-                _showLoadingText.value = "Going Online..."
-                val deviceId = sessionManager.fcmToken.first() ?: "Unknown"
-
-                // @Thomas - BREAKPOINT HERE: About to send go online WebSocket message
-                Timber.d("🌐 WEBSOCKET: Sending go online request")
-                Timber.d("📍 Location: lat=$latitude, lng=$longitude")
-                Timber.d("📱 Device ID: $deviceId")
-
-                // Use dynamic zone and ride type information if available
-                val currentZoneInfo = _zoneInfo.value
-                val finalZoneId = zoneId ?: currentZoneInfo?.payload?.zone?.id ?: "unknown_zone"
-                val finalRideTypeId =
-                    rideTypeId ?: currentZoneInfo
-                        ?.payload
-                        ?.zone
-                        ?.rideTypeIds
-                        ?.firstOrNull() ?: "unknown_ride_type"
-
-                Timber.d("🗺️ Zone ID: $finalZoneId (${if (zoneId == null) "from zone info" else "provided"})")
-                Timber.d("🚗 Ride Type: $finalRideTypeId (${if (rideTypeId == null) "from zone info" else "provided"})")
-
-                // Save online state immediately
-                driverStateManager.setOnlineState(
-                    isOnline = true,
-                    latitude = latitude,
-                    longitude = longitude,
-                    zoneId = finalZoneId,
-                    rideTypeId = finalRideTypeId
-                )
-
-                sessionManager.userToken.first()?.let { token ->
-                    repository.sendGoOnline(latitude, longitude, deviceId, finalZoneId, finalRideTypeId)
-                    Timber.d("✅ WEBSOCKET: Go online message sent successfully")
-                } ?: run {
-                    Timber.e("❌ WEBSOCKET ERROR: No authentication token available")
-                }
-            }
-        }
-
-        /**
-         * Update driver's current location
-         *
-         * Sends periodic location updates to the server for ride matching
-         * and navigation purposes.
-         *
-         * @param latitude Current GPS latitude
-         * @param longitude Current GPS longitude
-         */
-        fun updateLocation(
-            latitude: Double,
-            longitude: Double,
-        ) {
-            repository.sendUpdateLocation(latitude, longitude)
-        }
-
-        /**
-         * Accept an incoming ride request
-         *
-         * @param rideId Unique identifier of the ride to accept
-         */
-        fun acceptRide(rideId: String) {
-            viewModelScope.launch {
-                // @Thomas - BREAKPOINT HERE: WebSocket accepting ride request
-                // This sends the accept ride WebSocket message to the backend
-                _showLoading.value = true
-                _showLoadingText.value = "Matching you to the ride..."
-                Timber.d("✅ WEBSOCKET: Accepting ride request - ID: $rideId")
-                repository.sendAcceptRide(rideId)
-                // Clear the ride request after accepting
-                _rideRequest.value = null
-                Timber.d("🧹 WEBSOCKET: Cleared ride request from state after accept")
-            }
-        }
-
-        /**
-         * Decline an incoming ride request
-         *
-         * @param rideId Unique identifier of the ride to decline
-         */
-        fun declineRide(rideId: String) {
-            viewModelScope.launch {
-                // @Thomas - BREAKPOINT HERE: WebSocket declining ride request
-                // This handles ride decline (currently no WebSocket message, just clears state)
-                Timber.e("❌ WEBSOCKET: Declining ride request - ID: $rideId")
-                // TODO: Add decline ride method to repository when backend supports it
-                // repository.sendDeclineRide(rideId)
-                // Clear the ride request after declining
-                _rideRequest.value = null
-                Timber.d("🧹 WEBSOCKET: Cleared ride request from state after decline")
-            }
-        }
-
-        /**
-         * Notify server that driver has arrived at pickup location
-         *
-         * @param rideId Unique identifier of the ride
-         */
-        fun arriveAtPickup(rideId: String) {
-            // @Thomas - BREAKPOINT HERE: Driver arriving at pickup
-            // This notifies the backend that driver has arrived at pickup location
-            _showLoading.value = true
-            _showLoadingText.value = "Arriving at pickup point..."
-            _rideAccepted.value = false
-            Timber.d("📍 WEBSOCKET: Driver arriving at pickup - ID: $rideId")
-            repository.sendArriveAtPickup(rideId)
-        }
-
-        /**
-         * Start the ride journey
-         *
-         * @param rideId Unique identifier of the ride
-         */
-        fun startRide(rideId: String) {
-            // @Thomas - BREAKPOINT HERE: Starting ride journey
-            // This notifies the backend that the ride journey has started
-            _showLoading.value = true
-            _showLoadingText.value = "Starting the ride..."
-            _arrivedAtPickupPoint.value = false
-            Timber.d("🚀 WEBSOCKET: Starting ride journey - ID: $rideId")
-            repository.sendStartRide(rideId)
-        }
-
-        /**
-         * Complete the ride and submit final details
-         *
-         * @param rideId Unique identifier of the ride
-         * @param distance Total distance traveled in kilometers
-         */
-        fun completeRide(
-            rideId: String,
-            distance: Double,
-        ) {
-            // @Thomas - BREAKPOINT HERE: Completing ride
-            // This submits the final ride completion with distance traveled
-            _showLoading.value = true
-            _showLoadingText.value = "Completing ride..."
-            _rideStarted.value = false
-            Timber.d("🏁 WEBSOCKET: Completing ride - ID: $rideId, Distance: $distance km")
-            repository.sendCompleteRide(rideId, distance)
-        }
-
-        /**
-         * Request current active ride information
-         *
-         * Used to retrieve details of the ride currently in progress.
-         */
-        fun getActiveRide() {
-            // @Thomas - BREAKPOINT HERE: Getting active ride info
-            // This requests information about the currently active ride
-            Timber.d("📋 WEBSOCKET: Requesting active ride information")
-            repository.sendGetActiveRide()
-        }
-
-        /**
-         * Request to go offline
-         *
-         * Used to go offline.
-         */
-        fun goOffline() {
-            // @Thomas - BREAKPOINT HERE: Getting active ride info
-            // This requests information about the currently active ride
-            _showLoading.value = true
-            _showLoadingText.value = "Going offline..."
-            Timber.d("📋 WEBSOCKET: Go Offline")
-            repository.sendGoOffline()
-        }
-
-        /**
-         * Sends a WebSocket request to fetch the driver's ride history.
-         *
-         * This function generates a unique requestId and constructs a
-         * `GetRideHistoryRequest`, which is then sent to the server.
-         *
-         * Expected server response: A list of previous rides.
-         */
-        fun goRideHistory() {
-            val requestId = UUID.randomUUID().toString()
-            Timber.d("📋 WEBSOCKET: Fetching ride history (requestId = $requestId)")
-            repository.sendGetRideHistory(requestId)
+        // Persist state (this will automatically update all flows observing driverStateManager.driverState)
+        driverStateManager.saveDriverState(newDriverState)
+        
+        // Update dynamic location manager with new driver state
+        dynamicLocationManager.updateDriverState(newDriverState.availabilityState)
+        
+        // Clear rider info and ride model if driver goes back to ONLINE (ride completed/cancelled)
+        if (newDriverState.availabilityState == DriverAvailabilityState.ONLINE && 
+            newDriverState.currentRideId.isNullOrBlank()) {
+            _riderInfo.value = null
+            _rideModel.value = null
         }
     }
+
+    /**
+     * Handle action responses - just show loading states
+     */
+    private suspend fun handleActionResponse(response: ActionResponse) {
+        _showLoading.value = false
+
+        if (response.status == "success") {
+            Timber.d("✅ WEBSOCKET: ${response.action} succeeded")
+        } else {
+            Timber.e("❌ WEBSOCKET: ${response.action} failed - ${response.error}")
+        }
+    }
+
+    // ==============================================
+    // COMMAND METHODS - Send to Backend
+    // ==============================================
+
+    fun goOnline(latitude: Double, longitude: Double, zoneId: String, rideTypeId: String) {
+        viewModelScope.launch {
+            _showLoading.value = true
+            _showLoadingText.value = "Going Online..."
+
+            val deviceId = sessionManager.fcmToken.first() ?: "Unknown"
+
+            Timber.d("🌐 COMMAND: Going online at $latitude, $longitude")
+
+            // Save preferences for next time
+            driverStateManager.saveOnlinePreferences(zoneId, rideTypeId)
+
+            repository.sendGoOnline(latitude, longitude, deviceId, zoneId, rideTypeId)
+        }
+    }
+
+    fun goOffline() {
+        viewModelScope.launch {
+            _showLoading.value = true
+            _showLoadingText.value = "Going offline..."
+
+            Timber.d("📴 COMMAND: Going offline")
+            repository.sendGoOffline()
+        }
+    }
+
+    fun acceptRide(rideId: String) {
+        viewModelScope.launch {
+            _showLoading.value = true
+            _showLoadingText.value = "Accepting ride..."
+
+            Timber.d("✅ COMMAND: Accepting ride $rideId")
+            repository.sendAcceptRide(rideId)
+            _rideRequest.value = null // Clear the request
+        }
+    }
+
+    fun arriveAtPickup(rideId: String) {
+        viewModelScope.launch {
+            _showLoading.value = true
+            _showLoadingText.value = "Arriving at pickup..."
+
+            Timber.d("📍 COMMAND: Arriving at pickup for $rideId")
+            repository.sendArriveAtPickup(rideId)
+        }
+    }
+
+    fun startRide(rideId: String) {
+        viewModelScope.launch {
+            _showLoading.value = true
+            _showLoadingText.value = "Starting ride..."
+
+            Timber.d("🚀 COMMAND: Starting ride $rideId")
+            repository.sendStartRide(rideId)
+        }
+    }
+
+    fun completeRide(rideId: String, distance: Double) {
+        viewModelScope.launch {
+            _showLoading.value = true
+            _showLoadingText.value = "Completing ride..."
+
+            Timber.d("🏁 COMMAND: Completing ride $rideId")
+            repository.sendCompleteRide(rideId, distance)
+        }
+    }
+
+    fun updateLocation(latitude: Double, longitude: Double) {
+        repository.sendUpdateLocation(latitude, longitude)
+    }
+
+    /**
+     * Request ride history
+     */
+    fun goRideHistory() {
+        val requestId = UUID.randomUUID().toString()
+        Timber.d("📋 WEBSOCKET: Fetching ride history (requestId = $requestId)")
+        repository.sendGetRideHistory(requestId)
+    }
+
+    // ==============================================
+    // NEW METHODS FOR TASK 2.1
+    // ==============================================
+
+    /**
+     * Request driver profile information
+     */
+    fun getProfile() {
+        val requestId = UUID.randomUUID().toString()
+        Timber.d("📋 WEBSOCKET: Requesting profile (requestId = $requestId)")
+        repository.sendGetProfile(requestId)
+    }
+
+    /**
+     * Request driver earnings information
+     *
+     * @param timeFrame "week", "month", or "all"
+     */
+    fun getEarnings(timeFrame: String = "week") {
+        val requestId = UUID.randomUUID().toString()
+        Timber.d("💰 WEBSOCKET: Requesting earnings for $timeFrame (requestId = $requestId)")
+        repository.sendGetEarnings(requestId, timeFrame)
+    }
+
+
+
+    // ==============================================
+    // DYNAMIC LOCATION UPDATES
+    // ==============================================
+
+    fun startDynamicLocationUpdates() {
+        dynamicLocationManager.startLocationUpdates(viewModelScope) { lat, lng ->
+            // Send location to backend
+            repository.sendUpdateLocation(lat, lng)
+            // Update local state
+            viewModelScope.launch {
+                driverStateManager.updateLocation(lat, lng)
+            }
+        }
+    }
+
+    fun stopDynamicLocationUpdates() {
+        dynamicLocationManager.stopLocationUpdates()
+    }
+
+    // ==============================================
+    // CLEANUP
+    // ==============================================
+
+    fun disconnect() {
+        viewModelScope.launch {
+            stopDynamicLocationUpdates()
+            repository.disconnect()
+        }
+    }
+
+    suspend fun clearSession() {
+        sessionManager.clearSession()
+        driverStateManager.clearState()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopDynamicLocationUpdates()
+    }
+}

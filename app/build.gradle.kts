@@ -38,8 +38,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
 
-        buildConfigField("String", "BASE_URL", "\"piper-main-app.fly.dev\"")
-
         resValue("string", "mapbox_access_token", "\"$mapboxToken\"")
     }
 
@@ -51,6 +49,7 @@ android {
                 "proguard-rules.pro",
             )
 
+            buildConfigField("String", "BASE_URL", "\"https://api.thepiper.co\"")
             buildConfigField("String", "DEFAULT_EMAIL", "\"\"")
             buildConfigField("String", "DEFAULT_PASSWORD", "\"\"")
         }
@@ -58,6 +57,7 @@ android {
             isMinifyEnabled = false
             isDebuggable = true
 
+            buildConfigField("String", "BASE_URL", "\"https://api.thepiper.co\"")
             buildConfigField("String", "DEFAULT_EMAIL", "\"emma.wilson@thepiper.co\"")
             buildConfigField("String", "DEFAULT_PASSWORD", "\"Test@123\"")
         }
@@ -109,6 +109,7 @@ dependencies {
 
     // Hilt
     implementation("com.google.dagger:hilt-android:2.57")
+    implementation("androidx.lifecycle:lifecycle-process:2.9.2")
     kapt("com.google.dagger:hilt-android-compiler:2.57")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 

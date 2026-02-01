@@ -14,10 +14,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import javax.inject.Inject
+import com.piperrideshare.driver.services.AppLifecycleObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 
 @HiltAndroidApp
 class PiperDriverApp : Application() {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    @Inject
+    lateinit var appLifecycleObserver: AppLifecycleObserver
 
     override fun onCreate() {
         super.onCreate()
@@ -40,6 +46,8 @@ class PiperDriverApp : Application() {
         fetchAndSaveFcmToken()
 
         initializeLogging()
+
+        ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
     }
 
     private fun initializeLogging() {

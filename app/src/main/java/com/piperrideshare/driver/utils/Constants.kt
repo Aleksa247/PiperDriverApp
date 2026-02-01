@@ -8,7 +8,8 @@ object Constants {
     const val KEY_EMAIL = "email"
     const val KEY_PASSWORD = "password"
 
-    const val NOTIFICATION_ID = 12345
+    const val NOTIFICATION_ID = 1
+    const val WEBSOCKET_NOTIFICATION_ID = 22345
     const val CHANNEL_ID = "location_service_channel"
 
     val TOKEN_KEY = stringPreferencesKey("token")

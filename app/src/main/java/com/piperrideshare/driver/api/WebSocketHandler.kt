@@ -18,26 +18,36 @@ class WebSocketHandler
     constructor() {
         private var webSocket: WebSocket? = null
         private var onEventCallback: ((WebSocketResult) -> Unit)? = null
-
+        private var lastH3Index: String? = null
         private var lastToken: String? = null
         private var autoReconnect = true
         private var reconnecting = false
 
         fun connect(
             token: String,
+            h3Index: String? = null,
             onEvent: (WebSocketResult) -> Unit,
         ) {
             this.lastToken = token
+            this.lastH3Index = h3Index
             this.onEventCallback = onEvent
             this.reconnecting = false
 
             val client = OkHttpClient()
-            val request =
-                Request
-                    .Builder()
-                    .url("wss://${BuildConfig.BASE_URL}/api/drivers/ws")
-                    .addHeader("Authorization", "Bearer $token")
-                    .build()
+            val wsUrl = BuildConfig.BASE_URL
+                .replace("https://", "wss://")
+                .replace("http://", "ws://")
+            val requestBuilder = Request.Builder()
+                .url("$wsUrl/api/drivers/ws")
+                .addHeader("Authorization", "Bearer $token")
+            
+            // Add H3 header if provided
+            h3Index?.let {
+                requestBuilder.addHeader("Piper-H3-Hex", it)
+                Timber.d("🗺️ Adding H3 header: $it")
+            }
+            
+            val request = requestBuilder.build()
 
             webSocket =
                 client.newWebSocket(
@@ -107,8 +117,8 @@ class WebSocketHandler
 
             Timber.d("🔁 Attempting to reconnect WebSocket...")
 
-            // Optional: Add delay or exponential backoff here if needed
-            connect(lastToken!!, onEventCallback ?: return)
+            // Reconnect with last H3 index
+            connect(lastToken!!, lastH3Index, onEventCallback ?: return)
         }
 
         fun send(message: String) {

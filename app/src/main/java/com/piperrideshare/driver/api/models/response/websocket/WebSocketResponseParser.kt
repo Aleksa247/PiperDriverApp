@@ -25,7 +25,7 @@ object WebSocketResponseParser {
         val payload = json.optJSONObject("payload")
         val status = json.optString("status")
         val error = json.optString("error")
-
+        val requestId = json.optString("requestId")
         return when (type) {
             "notification" ->
                 when (action) {
@@ -106,6 +106,65 @@ object WebSocketResponseParser {
                     -> {
                         Timber.d("✅ WEBSOCKET: $action response - Status: $status")
                         ActionResponse(type, action, status, error, payload)
+                    }
+
+                    "get_rider_info" -> {
+                        Timber.d("👤 WEBSOCKET: Rider info response")
+                        try {
+                            if (payload != null) {
+                                gson.fromJson(payload.toString(), RiderInfoResponse::class.java)
+                            } else {
+                                Timber.e("❌ get_rider_info payload is null")
+                                UnknownResponse(json.toString())
+                            }
+                        } catch (e: Exception) {
+                            Timber.e("❌ RIDER INFO PARSE ERROR: ${e.message}")
+                            UnknownResponse(json.toString())
+                        }
+                    }
+
+                    "get_profile" -> {
+                        Timber.d("📋 WEBSOCKET: Profile response")
+                        try {
+                            if (payload != null) {
+                                val response = gson.fromJson(payload.toString(), ProfileResponse::class.java)
+                                // Add requestId if it was in the parent JSON
+                                response.copy(requestId = requestId.takeIf { it.isNotBlank() })
+                            } else {
+                                Timber.e("❌ get_profile payload is null")
+                                UnknownResponse(json.toString())
+                            }
+                        } catch (e: Exception) {
+                            Timber.e("❌ PROFILE PARSE ERROR: ${e.message}")
+                            UnknownResponse(json.toString())
+                        }
+                    }
+
+                    "get_earnings" -> {
+                        Timber.d("💰 WEBSOCKET: Earnings response")
+                        try {
+                            if (payload != null) {
+                                val response = gson.fromJson(payload.toString(), EarningsResponse::class.java)
+                                // Add requestId if it was in the parent JSON
+                                response.copy(requestId = requestId.takeIf { it.isNotBlank() })
+                            } else {
+                                Timber.e("❌ get_earnings payload is null")
+                                UnknownResponse(json.toString())
+                            }
+                        } catch (e: Exception) {
+                            Timber.e("❌ EARNINGS PARSE ERROR: ${e.message}")
+                            UnknownResponse(json.toString())
+                        }
+                    }
+
+                    "get_ride_history" -> {
+                        Timber.d("📜 WEBSOCKET: Ride history response")
+                        try {
+                            gson.fromJson(json.toString(), RideHistoryResponse::class.java)
+                        } catch (e: Exception) {
+                            Timber.e("❌ RIDE HISTORY PARSE ERROR: ${e.message}")
+                            UnknownResponse(json.toString())
+                        }
                     }
 
                     else -> UnknownResponse(json.toString())
