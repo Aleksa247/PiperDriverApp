@@ -50,6 +50,78 @@ fun HomeTabContent(
     rideRequestPickupAddress: String?,
     rideRequestDropoffAddress: String?,
 ) {
+    // --- PIN state ---
+    var showPinDialog by remember { mutableStateOf(false) }
+    var pinInput by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf<String?>(null) }
+
+    // expected PIN = last 4 of riderId from rideModel
+    val expectedPin = remember(rideModel?.riderId) {
+        rideModel?.riderId?.takeLast(4) ?: ""
+    }
+
+    if (showPinDialog && rideModel != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showPinDialog = false
+                pinInput = ""
+                pinError = null
+            },
+            title = { Text("Enter Rider PIN") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = pinInput,
+                        onValueChange = { value ->
+                            // keep it to 4 digits
+                            pinInput = value.filter { it.isDigit() }.take(4)
+                        },
+                        label = { Text("Last 4 of Rider ID") },
+                        singleLine = true
+                    )
+                    if (pinError != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = pinError!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (expectedPin.isNotBlank() && pinInput == expectedPin) {
+                            // PIN correct → start the ride
+                            rideModel.rideId?.let { id ->
+                                viewModel.startRide(id)
+                            }
+                            showPinDialog = false
+                            pinInput = ""
+                            pinError = null
+                        } else {
+                            pinError = "Incorrect PIN. Please try again."
+                        }
+                    }
+                ) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showPinDialog = false
+                        pinInput = ""
+                        pinError = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     if (currentAvailabilityState in listOf(DriverAvailabilityState.EN_ROUTE, DriverAvailabilityState.ARRIVED, DriverAvailabilityState.IN_TRIP)) {
         val scaffoldState = rememberBottomSheetScaffoldState(
             bottomSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.PartiallyExpanded, skipHiddenState = true)
@@ -70,7 +142,15 @@ fun HomeTabContent(
                             else -> "unknown"
                         },
                         onArriveAtPickup = { rideModel.rideId?.let { viewModel.arriveAtPickup(it) } },
-                        onStartRide = { rideModel.rideId?.let { viewModel.startRide(it) } },
+                        onStartRide = {
+                            // Only require PIN when driver has arrived at pickup
+                            if (currentAvailabilityState == DriverAvailabilityState.ARRIVED) {
+                                showPinDialog = true
+                            } else {
+                                // Fallback: allow start without PIN in other states if needed
+                                rideModel.rideId?.let { viewModel.startRide(it) }
+                            }
+                        },
                         onCompleteRide = { rideModel.rideId?.let { viewModel.completeRide(it, 0.0) } },
                         onCallRider = { /* TODO */ }
                     )
