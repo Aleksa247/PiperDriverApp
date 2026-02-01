@@ -43,6 +43,8 @@ data class DriverState(
     val availabilityState: DriverAvailabilityState,
     val currentRideId: String?,
     val currentLocation: Pair<Double, Double>?,
+    //styamamo - edit add current address field
+    val currentAddress: String? = null,
 
     // Additional fields from backend driver model
     val firstName: String = "",

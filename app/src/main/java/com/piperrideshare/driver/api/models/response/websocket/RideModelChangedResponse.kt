@@ -32,6 +32,9 @@ data class RideModelChangedResponse(
     val rating: Int,
     val feedback: String,
     val version: Int,
+    //styamamo-edit
+    val pickupAddress: String? = null,
+    val dropoffAddress: String? = null,
 ) : WebSocketResponse()
 
 data class LatLng(

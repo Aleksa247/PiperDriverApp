@@ -21,22 +21,45 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.piperrideshare.driver.api.models.response.websocket.RideRequestedResponse
+import kotlinx.coroutines.delay
 
 @SuppressLint("DefaultLocale")
 @Composable
 fun RideRequestPopup(
     rideRequest: RideRequestedResponse,
+    pickupAddress: String?,
+    dropoffAddress: String?,
     onAccept: () -> Unit,
     onDecline: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
+
+    // Countdown timer starts at 15 seconds
+    var countdownSeconds by remember { mutableIntStateOf(15) }
+    
+    // Decline when countdown reaches 0
+    LaunchedEffect(countdownSeconds) {
+        if (countdownSeconds > 0) {
+            delay(10000) // 1 second
+            countdownSeconds--
+        } else {
+            // Time's up - auto decline
+            onDecline()
+        }
+    }
 
     Box(
         modifier =
@@ -72,6 +95,15 @@ fun RideRequestPopup(
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Countdown timer display
+                    Text(
+                        text = "Auto-decline in $countdownSeconds sec",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (countdownSeconds <= 5) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
@@ -95,7 +127,7 @@ fun RideRequestPopup(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = "${pickup.latitude}, ${pickup.longitude}",
+                                    text = pickupAddress ?: "Unknown Location", // styamamo- text display pickup address
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
@@ -117,7 +149,7 @@ fun RideRequestPopup(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = "${dropoff.latitude}, ${dropoff.longitude}",
+                                    text = dropoffAddress ?:"Unknown Location", // styamamo - text display dropoff address
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }

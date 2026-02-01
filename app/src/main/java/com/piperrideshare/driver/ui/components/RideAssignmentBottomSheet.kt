@@ -142,6 +142,7 @@ fun RideAssignmentBottomSheet(
                 LocationRow(
                     icon = "📍",
                     label = "Pickup",
+                    address = rideModel.pickupAddress, // styamamo - show pickup address
                     location = rideModel.pickupLocation,
                     isCurrentLocation = currentRideStatus == "accepted",
                     onNavigate = {
@@ -155,6 +156,7 @@ fun RideAssignmentBottomSheet(
                 LocationRow(
                     icon = "🎯",
                     label = "Dropoff",
+                    address = rideModel.dropoffAddress, // styamamo - show dropoff address
                     location = rideModel.dropoffLocation,
                     isCurrentLocation = false,
                     onNavigate = {
@@ -225,6 +227,7 @@ private fun LocationRow(
     icon: String,
     label: String,
     location: LatLng?,
+    address: String?,
     isCurrentLocation: Boolean,
     onNavigate: () -> Unit
 ) {
@@ -257,7 +260,7 @@ private fun LocationRow(
                 }
             }
             Text(
-                text = location?.let { "${it.latitude}, ${it.longitude}" } ?: "Unknown location",
+                text = address?: "Loading address...", // styamamo - edit display text address
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

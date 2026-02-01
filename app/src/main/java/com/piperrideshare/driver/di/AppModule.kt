@@ -5,6 +5,7 @@ import android.content.Context
 import com.piperrideshare.driver.data.UserPreferences
 import com.piperrideshare.driver.services.session.ISessionManager
 import com.piperrideshare.driver.services.session.SessionManager
+import com.piperrideshare.driver.services.MapboxSearchService
 
 import dagger.Binds
 import dagger.Module
@@ -41,4 +42,11 @@ object AppModule {
             @ApplicationContext context: Context,
         ): UserPreferences = UserPreferences(context)
     }
+
+    // styamamo - edit
+    @Provides
+    @Singleton
+    fun provideMapboxSearchService(
+        @ApplicationContext context: Context
+    ): MapboxSearchService = MapboxSearchService(context)
 }
