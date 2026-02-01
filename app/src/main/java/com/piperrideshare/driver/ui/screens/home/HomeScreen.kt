@@ -50,6 +50,7 @@ sealed class BottomNavItem(val label: String, val icon: ImageVector) {
 @Composable
 fun HomeScreen(
     onNavigateToRideDetail: (String) -> Unit,
+    onNavigateToChat: (String) -> Unit,
     onLogout: () -> Unit,
     viewModel: WebSocketViewModel = hiltViewModel(),
 ) {
@@ -324,7 +325,8 @@ fun HomeScreen(
                         setMapViewInstance = { mapViewInstance = it },
                         //styamamo - edit add parameters for addresses
                         rideRequestPickupAddress = rideRequestPickupAddress,
-                        rideRequestDropoffAddress = rideRequestDropoffAddress
+                        rideRequestDropoffAddress = rideRequestDropoffAddress,
+                        onNavigateToChat = onNavigateToChat
                     )
                 }
                 is BottomNavItem.Activity -> ActivityScreen()

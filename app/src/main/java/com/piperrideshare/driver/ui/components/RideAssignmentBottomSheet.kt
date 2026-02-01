@@ -32,6 +32,7 @@ fun RideAssignmentBottomSheet(
     onStartRide: () -> Unit,
     onCompleteRide: () -> Unit,
     onCallRider: () -> Unit,
+    onChatClick: () -> Unit,
 ) {
     if (rideModel == null) return
     val context = LocalContext.current
@@ -80,6 +81,18 @@ fun RideAssignmentBottomSheet(
                             text = rider.name ?: "Unknown Rider",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Chat Button
+                    IconButton(
+                        onClick = onChatClick,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send, // Use Send icon for chat for now, or Message
+                            contentDescription = "Chat with Rider",
+                            tint = Color(0xFF2196F3)
                         )
                     }
 

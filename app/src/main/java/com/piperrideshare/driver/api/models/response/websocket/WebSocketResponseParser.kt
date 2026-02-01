@@ -99,10 +99,42 @@ object WebSocketResponseParser {
                     else -> UnknownResponse(json.toString())
                 }
 
+
+            "chat_message" ->
+                when (action) {
+                    "new_message" -> {
+                        Timber.d("💬 WEBSOCKET: New chat message received")
+                        try {
+                            // The payload comes wrapped in a WebSocketResponse structure in iOS
+                            // "payload": { "type": "response", "payload": { "id": "...", "message": "..." } }
+                            // BUT accessing raw "payload" here (line 25) gets the inner object directly if structure is flat
+                            // Let's assume standard structure: payload is the ChatMessage object
+                            
+                            // iOS Decode logic:
+                            // let decoded = try decoder.decode(WebSocketResponse<ChatMessagePayload>.self, from: data)
+                            // This implies the message structure is:
+                            // { "type": "chat_message", "action": "new_message", "payload": { "message": "...", ... } }
+                            
+                            if (payload != null) {
+                                val message = gson.fromJson(payload.toString(), ChatMessage::class.java)
+                                NewMessageResponse(message)
+                            } else {
+                                Timber.e("❌ new_message payload is null")
+                                UnknownResponse(json.toString())
+                            }
+                        } catch (e: Exception) {
+                            Timber.e("❌ CHAT MESSAGE PARSE ERROR: ${e.message}")
+                            UnknownResponse(json.toString())
+                        }
+                    }
+                    else -> UnknownResponse(json.toString())
+                }
+
             "response" ->
                 when (action) {
                     "go_online", "update_location", "accept_ride",
                     "arrive_at_pickup", "start_ride", "complete_ride",
+                    "send_message" // Added send_message here as a generic action response
                     -> {
                         Timber.d("✅ WEBSOCKET: $action response - Status: $status")
                         ActionResponse(type, action, status, error, payload)
@@ -163,6 +195,32 @@ object WebSocketResponseParser {
                             gson.fromJson(json.toString(), RideHistoryResponse::class.java)
                         } catch (e: Exception) {
                             Timber.e("❌ RIDE HISTORY PARSE ERROR: ${e.message}")
+                            UnknownResponse(json.toString())
+                        }
+                    }
+                    
+                    "get_chat_history" -> {
+                        Timber.d("💬 WEBSOCKET: Chat history response")
+                         try {
+                             // Payload is a list of messages: [ {msg1}, {msg2} ]
+                             // But 'payload' variable is a JSONObject? from line 25.
+                             // if payload is a JSONArray, json.optJSONObject("payload") returns null!
+                             
+                             // We need to re-fetch payload as generic or check if it's array
+                             val payloadArray = json.optJSONArray("payload")
+                             if (payloadArray != null) {
+                                 val messages = ArrayList<ChatMessage>()
+                                 for (i in 0 until payloadArray.length()) {
+                                     val msgJson = payloadArray.getJSONObject(i)
+                                     messages.add(gson.fromJson(msgJson.toString(), ChatMessage::class.java))
+                                 }
+                                 ChatHistoryResponse(messages)
+                             } else {
+                                 // Empty list or null
+                                 ChatHistoryResponse(emptyList())
+                             }
+                        } catch (e: Exception) {
+                            Timber.e("❌ CHAT HISTORY PARSE ERROR: ${e.message}")
                             UnknownResponse(json.toString())
                         }
                     }

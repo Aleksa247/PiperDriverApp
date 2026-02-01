@@ -44,4 +44,7 @@ interface IWebSocketRepository {
 
     fun sendGetEarnings(requestId: String, timeFrame: String = "week")
 
+    fun sendGetChatHistory(requestId: String, rideId: String)
+
+    fun sendChatMessage(rideId: String, message: String)
 }

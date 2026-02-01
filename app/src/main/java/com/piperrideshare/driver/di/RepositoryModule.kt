@@ -1,6 +1,5 @@
 package com.piperrideshare.driver.di
 
-import com.piperrideshare.driver.api.WebSocketHandler
 import com.piperrideshare.driver.domain.repository.AuthRepository
 import com.piperrideshare.driver.domain.repository.WebSocketRepository
 import com.piperrideshare.driver.repository.AuthRepositoryImpl
@@ -31,9 +30,7 @@ abstract class RepositoryModule {
 @Module
 @InstallIn(SingletonComponent::class)
 object RepositoryProvidesModule {
-    @Provides
-    @Singleton
-    fun provideWebSocketHandler(): WebSocketHandler = WebSocketHandler()
+    // Note: WebSocketHandler is now automatically provided by Hilt via @Inject constructor
 
     @Provides
     @Singleton
@@ -45,3 +42,4 @@ object RepositoryProvidesModule {
         @ApplicationContext context: Context
     ): LocationTracker = LocationTracker(context)
 }
+

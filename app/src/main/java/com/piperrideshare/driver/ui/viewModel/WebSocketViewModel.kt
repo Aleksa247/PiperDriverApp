@@ -12,6 +12,9 @@ import com.piperrideshare.driver.api.models.response.websocket.RideModelChangedR
 import com.piperrideshare.driver.api.models.response.websocket.RideRequestedResponse
 import com.piperrideshare.driver.api.models.response.websocket.RiderInfoResponse
 import com.piperrideshare.driver.api.models.response.websocket.RideHistoryResponse
+import com.piperrideshare.driver.api.models.response.websocket.ChatMessage
+import com.piperrideshare.driver.api.models.response.websocket.ChatHistoryResponse
+import com.piperrideshare.driver.api.models.response.websocket.NewMessageResponse
 import com.piperrideshare.driver.api.models.response.websocket.UnknownResponse
 import com.piperrideshare.driver.api.models.response.websocket.ZoneInfoResponse
 import com.piperrideshare.driver.api.models.toDriverState
@@ -94,10 +97,14 @@ constructor(
 
     private val _rideRequestDropoffAddress = MutableStateFlow<String?>(null)
     val rideRequestDropoffAddress: StateFlow<String?> = _rideRequestDropoffAddress
-
     // ==============================================
     // NEW STATE FOR TASK 2.1
     // ==============================================
+    
+    // Chat state
+    private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val chatMessages = _chatMessages.asStateFlow()
+
 
     private val _profileResponse = MutableStateFlow<ProfileResponse?>(null)
     val profileResponse = _profileResponse.asStateFlow()
@@ -234,9 +241,30 @@ constructor(
                             Timber.d("💰 WEBSOCKET: Earnings response received")
                         }
 
+
                         is RideHistoryResponse -> {
                             _rideHistory.value = response
                             Timber.d("📜 WEBSOCKET: Ride history response received")
+                        }
+
+                        is ChatHistoryResponse -> {
+                             val currentList = _chatMessages.value.toMutableList()
+                             val newMessages = response.messages.filter { newMsg ->
+                                 currentList.none { it.id == newMsg.id }
+                             }
+                             currentList.addAll(newMessages)
+                             currentList.sortBy { it.timestamp } 
+                             _chatMessages.value = currentList
+                             Timber.d("💬 WEBSOCKET: Chat history updated (${newMessages.size} new)")
+                        }
+
+                        is NewMessageResponse -> {
+                             val currentList = _chatMessages.value.toMutableList()
+                             if (currentList.none { it.id == response.message.id }) {
+                                 currentList.add(response.message)
+                                 _chatMessages.value = currentList
+                                 Timber.d("💬 WEBSOCKET: New message added")
+                             }
                         }
 
                         is UnknownResponse -> {
@@ -391,6 +419,25 @@ constructor(
         val requestId = UUID.randomUUID().toString()
         Timber.d("💰 WEBSOCKET: Requesting earnings for $timeFrame (requestId = $requestId)")
         repository.sendGetEarnings(requestId, timeFrame)
+    }
+
+    /**
+     * Chat Methods
+     */
+    fun fetchChatHistory(rideId: String) {
+        val requestId = UUID.randomUUID().toString()
+        Timber.d("💬 WEBSOCKET: Fetching chat history for ride $rideId")
+        repository.sendGetChatHistory(requestId, rideId)
+    }
+
+    fun sendChatMessage(rideId: String, message: String) {
+        if (message.isBlank()) return
+        
+        Timber.d("💬 WEBSOCKET: Sending chat message for ride $rideId")
+        repository.sendChatMessage(rideId, message)
+        
+        // Optimistic update could happen here, but waiting for server confirmation (or echo) is safer
+        // iOS implementation adds it optimistically. Let's wait for the echo via NewMessageResponse for now to keep it simple.
     }
 
 

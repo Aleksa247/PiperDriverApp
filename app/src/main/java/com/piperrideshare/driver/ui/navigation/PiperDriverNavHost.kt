@@ -5,9 +5,13 @@ import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.piperrideshare.driver.BuildConfig
+import com.piperrideshare.driver.ui.screens.debug.DebugMenuScreen
 import com.piperrideshare.driver.ui.screens.home.HomeScreen
 import com.piperrideshare.driver.ui.screens.login.LoginScreen
+import com.piperrideshare.driver.ui.screens.onboarding.OnboardingCoordinator
 import com.piperrideshare.driver.ui.screens.splash.SplashScreen
+import com.piperrideshare.driver.ui.screens.chat.ChatScreen
 
 /**
  * Navigation Routes - Centralized route definitions for the driver app
@@ -20,12 +24,26 @@ import com.piperrideshare.driver.ui.screens.splash.SplashScreen
 object NavRoutes {
     const val SPLASH = "splash" // Initial loading screen
     const val LOGIN = "login" // Authentication screen
+    const val ONBOARDING = "onboarding/{email}/{phone}" // Onboarding flow (verification, background check, Stripe)
     const val HOME = "home" // Main driver dashboard
     const val RIDE_DETAIL = "ride_detail/{rideId}" // Individual ride details
     const val ACCOUNT = "account" // Driver account management
     const val EARNINGS = "earnings" // Earnings and payment history
     const val SETTINGS = "settings" // App settings and preferences
+    const val DEBUG_MENU = "debug_menu" // Debug settings (DEBUG builds only)
+    const val CHAT = "chat/{rideId}" // Chat screen for specific ride
+
+    fun onboarding(email: String, phone: String): String = 
+        "onboarding/${Uri.encode(email)}/${Uri.encode(phone)}"
+        
+    fun chat(rideId: String): String = "chat/$rideId"
 }
+
+private object Uri {
+    fun encode(value: String): String = java.net.URLEncoder.encode(value, "UTF-8")
+    fun decode(value: String): String = java.net.URLDecoder.decode(value, "UTF-8")
+}
+
 
 /**
  * PiperDriverNavHost - Main navigation container for the driver app
@@ -36,7 +54,8 @@ object NavRoutes {
  * Navigation Flow:
  * 1. Splash Screen (initial loading)
  * 2. Login Screen (authentication)
- * 3. Home Screen (main driver interface)
+ * 3. Onboarding Screen (verification & setup - if needed)
+ * 4. Home Screen (main driver interface)
  *
  * @param navController The navigation controller that manages screen navigation
  * @author Thomas Woodfin
@@ -61,7 +80,31 @@ fun PiperDriverNavHost(navController: NavHostController) {
         // Login screen - handles user authentication
         composable(NavRoutes.LOGIN) {
             LoginScreen(
-                onLoginSuccess = actions.navigateToHome,
+                onLoginSuccess = actions.navigateToHome, // For returning users, go straight home
+                onLoginSuccessWithOnboarding = actions.navigateToOnboarding, // For new users, go to onboarding
+                onNavigateToDebugMenu = if (BuildConfig.DEBUG) actions.navigateToDebugMenu else null,
+            )
+        }
+
+        // Debug menu - only available in DEBUG builds
+        if (BuildConfig.DEBUG) {
+            composable(NavRoutes.DEBUG_MENU) {
+                DebugMenuScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
+
+        // Onboarding flow - verification, background check, Stripe setup
+        composable(NavRoutes.ONBOARDING) { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email")?.let { Uri.decode(it) } ?: ""
+            val phone = backStackEntry.arguments?.getString("phone")?.let { Uri.decode(it) } ?: ""
+            
+            OnboardingCoordinator(
+                email = email,
+                phone = phone,
+                onComplete = actions.navigateToHomeFromOnboarding,
+                onLogout = actions.navigateToLoginAfterLogout,
             )
         }
 
@@ -70,6 +113,16 @@ fun PiperDriverNavHost(navController: NavHostController) {
             HomeScreen(
                 onNavigateToRideDetail = actions.navigateToRideDetail,
                 onLogout = actions.navigateToLoginAfterLogout,
+                onNavigateToChat = actions.navigateToChat,
+            )
+        }
+        
+        // Chat screen
+        composable(NavRoutes.CHAT) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getString("rideId") ?: ""
+            ChatScreen(
+                rideId = rideId,
+                onBackClick = { navController.popBackStack() }
             )
         }
     }
@@ -122,10 +175,47 @@ class NavActions(
     }
 
     /**
+     * Navigate to onboarding screen after login (for new users)
+     * @param email Driver's email for verification
+     * @param phone Driver's phone for verification
+     */
+    val navigateToOnboarding: (email: String, phone: String) -> Unit = { email, phone ->
+        navController.navigate(NavRoutes.onboarding(email, phone)) {
+            // Clear the back stack up to login screen (inclusive)
+            popUpTo(NavRoutes.LOGIN) { inclusive = true }
+        }
+    }
+
+    /**
+     * Navigate to home screen from onboarding (when onboarding is complete)
+     */
+    val navigateToHomeFromOnboarding: () -> Unit = {
+        navController.navigate(NavRoutes.HOME) {
+            // Clear onboarding from back stack
+            popUpTo(0) { inclusive = true }
+        }
+    }
+
+    /**
      * Navigate to ride detail screen with specific ride ID
      * @param rideId The unique identifier of the ride to display
      */
     val navigateToRideDetail: (String) -> Unit = { rideId ->
         navController.navigate("ride_detail/$rideId")
     }
+
+    /**
+     * Navigate to debug menu (DEBUG builds only)
+     */
+    val navigateToDebugMenu: () -> Unit = {
+        navController.navigate(NavRoutes.DEBUG_MENU)
+    }
+
+    /**
+     * Navigate to chat screen for a specific ride
+     */
+    val navigateToChat: (String) -> Unit = { rideId ->
+        navController.navigate(NavRoutes.chat(rideId))
+    }
 }
+

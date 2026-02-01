@@ -49,6 +49,7 @@ fun HomeTabContent(
     // styamamo - edit add pickupAddress and dropoffAddress as parameters
     rideRequestPickupAddress: String?,
     rideRequestDropoffAddress: String?,
+    onNavigateToChat: (String) -> Unit,
 ) {
     // --- PIN state ---
     var showPinDialog by remember { mutableStateOf(false) }
@@ -152,7 +153,8 @@ fun HomeTabContent(
                             }
                         },
                         onCompleteRide = { rideModel.rideId?.let { viewModel.completeRide(it, 0.0) } },
-                        onCallRider = { /* TODO */ }
+                        onCallRider = { /* TODO */ },
+                        onChatClick = { rideModel.rideId?.let { onNavigateToChat(it) } }
                     )
                 }
             },

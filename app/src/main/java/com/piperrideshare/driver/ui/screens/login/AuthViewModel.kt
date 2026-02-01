@@ -37,7 +37,6 @@ class AuthViewModel
                 val deviceId = sessionManager.fcmToken.first() ?: "Unknown"
 
                 // @Thomas - BREAKPOINT HERE: About to make API call to login endpoint
-                // This will show in logcat when the actual HTTP request is made
                 Timber.d("🌐 API CALL: Making login request to /api/drivers/login")
                 Timber.d("📧 Email: $email")
                 Timber.d("🔑 Device ID: $deviceId")
@@ -46,21 +45,20 @@ class AuthViewModel
                 val result = authRepository.login(email, password, deviceId)
 
                 // @Thomas - BREAKPOINT HERE: API response received
-                // Check logcat for HTTP response details
                 when (result) {
                     is ApiResult.Success -> {
                         val response = result.data
-                        Timber.d("✅ LOGIN SUCCESS: Token=${response.token}")
+                        Timber.d("✅ LOGIN SUCCESS: ID=${response.id}, ExpiresIn=${response.expiresIn}s")
+                        
+                        // Save tokens using new session manager interface
                         sessionManager.saveAuthInfo(
-                            token = response.token,
-                            userId = response.userId,
-                            name = response.name,
+                            accessToken = response.accessToken,
+                            refreshToken = response.refreshToken,
+                            expiresIn = response.expiresIn,
+                            userId = response.id,
+                            name = response.name ?: response.id, // Fallback to ID if name not provided
                         )
                     }
-
-                    // print the response
-
-
 
                     is ApiResult.Failure -> {
                         Timber.e("❌ LOGIN FAILURE: ${result.message} (code=${result.code})")
@@ -75,3 +73,4 @@ class AuthViewModel
             }
         }
     }
+

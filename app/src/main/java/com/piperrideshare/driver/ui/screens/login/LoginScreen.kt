@@ -1,6 +1,7 @@
 package com.piperrideshare.driver.ui.screens.login
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -56,6 +58,8 @@ import com.piperrideshare.driver.ui.components.XmlDrawableImage
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
+    onLoginSuccessWithOnboarding: ((email: String, phone: String) -> Unit)? = null,
+    onNavigateToDebugMenu: (() -> Unit)? = null,
     authViewModel: AuthViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -104,10 +108,21 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Center,
         ) {
             // @Thomas - BREAKPOINT HERE:: App logo shown here
-            XmlDrawableImage(
-                drawableRes = R.mipmap.ic_launcher,
-                contentDescription = stringResource(R.string.app_name),
-            )
+            // Long-press on logo opens Debug Menu in DEBUG builds
+            Box(
+                modifier = Modifier.pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = {
+                            onNavigateToDebugMenu?.invoke()
+                        }
+                    )
+                }
+            ) {
+                XmlDrawableImage(
+                    drawableRes = R.mipmap.ic_launcher,
+                    contentDescription = stringResource(R.string.app_name),
+                )
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -177,11 +192,18 @@ fun LoginScreen(
                 when (result) {
                     is ApiResult.Success -> {
                         LaunchedEffect(result) {
-                            // @Thomas - BREAKPOINT HERE:: Login success detected, trigger success callback
-                            onLoginSuccess()
+                            // @Thomas - BREAKPOINT HERE:: Login success detected
+                            // Route through onboarding if callback provided (new flow)
+                            // OnboardingCoordinator will check canGoOnline and redirect if complete
+                            if (onLoginSuccessWithOnboarding != null) {
+                                // Pass email from form, phone will be fetched from backend
+                                onLoginSuccessWithOnboarding(email, "")
+                            } else {
+                                onLoginSuccess()
+                            }
                         }
                         Text(
-                            text = "Login successful! Welcome ${result.data.name}",
+                            text = "Login successful! Welcome ${result.data.id}",
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
