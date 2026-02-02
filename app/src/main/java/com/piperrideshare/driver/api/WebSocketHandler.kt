@@ -77,10 +77,12 @@ class WebSocketHandler
             val wsUrl = baseUrl
                 .replace("https://", "wss://")
                 .replace("http://", "ws://")
-            Timber.d("🌐 WebSocket connecting to: $wsUrl (attempt ${reconnectAttempt + 1})")
+            val fullWsUrl = "$wsUrl/api/drivers/ws"
+            Timber.d("🌐 WebSocket connecting to: $fullWsUrl (attempt ${reconnectAttempt + 1})")
             val requestBuilder = Request.Builder()
-                .url("$wsUrl/api/drivers/ws")
+                .url(fullWsUrl)
                 .addHeader("Authorization", "Bearer $token")
+                .addHeader("ngrok-skip-browser-warning", "true")  // Required for ngrok free tier
 
             // Add H3 header if provided
             h3Index?.let {

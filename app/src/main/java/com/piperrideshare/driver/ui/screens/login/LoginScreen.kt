@@ -36,6 +36,10 @@ import com.piperrideshare.driver.ui.components.PiperDriverButton
 import com.piperrideshare.driver.ui.components.PiperDriverCheckbox
 import com.piperrideshare.driver.ui.components.PiperDriverOutlinedTextField
 import com.piperrideshare.driver.ui.components.XmlDrawableImage
+import com.piperrideshare.driver.ui.viewModel.WebSocketViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
 
 /**
  * LoginScreen - Authentication interface for the driver app
@@ -60,13 +64,15 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onLoginSuccessWithOnboarding: ((email: String, phone: String) -> Unit)? = null,
     onNavigateToDebugMenu: (() -> Unit)? = null,
+    onNavigateToRegister: () -> Unit,
     authViewModel: AuthViewModel = hiltViewModel(),
+    webSocketViewModel: WebSocketViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val userPrefs = remember { UserPreferences(context) }
 
     // UI state management with hardcoded test credentials
-    var rememberMe by remember { mutableStateOf(userPrefs.rememberMe) }
+
     var email by remember {
         mutableStateOf(
             when {
@@ -88,14 +94,22 @@ fun LoginScreen(
     // Observe ViewModel state
     val loginResult by authViewModel.loginResult.collectAsState()
     val isLoading by authViewModel.isLoading.collectAsState()
+    
+    // Observe driver state from WebSocket
+    val driverState by webSocketViewModel.driverState.collectAsState(initial = null)
 
-    // Auto-login logic if rememberMe is true and credentials are available
+    // Reset login state when entering login screen to prevent stale success from auto-navigating
     LaunchedEffect(Unit) {
-        // @Thomas - BREAKPOINT HERE:: Auto-login triggered if rememberMe and credentials present
-        if (rememberMe && email.isNotBlank() && password.isNotBlank()) {
-            authViewModel.login(email, password)
-        }
+        authViewModel.resetLoginState()
     }
+    
+    // Auto-login disabled: Users must explicitly click Login or Register
+    // This gives new users a chance to navigate to registration
+    // LaunchedEffect(Unit) {
+    //     if (email.isNotBlank() && password.isNotBlank()) {
+    //         authViewModel.login(email, password)
+    //     }
+    // }
 
     // Main login interface
     Box(modifier = Modifier.fillMaxSize()) {
@@ -149,18 +163,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // @Thomas - BREAKPOINT HERE:: Remember Me checkbox UI
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                PiperDriverCheckbox(
-                    checked = rememberMe,
-                    onCheckedChange = { rememberMe = it },
-                    label = "Remember Me",
-                    enabled = !isLoading,
-                )
-            }
+
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -174,16 +177,19 @@ fun LoginScreen(
                     // @Thomas - BREAKPOINT HERE:: Login button clicked; call ViewModel.login
                     authViewModel.login(email, password)
 
-                    // @Thomas - BREAKPOINT HERE:: Save or clear credentials based on rememberMe
-                    if (rememberMe) {
-                        userPrefs.rememberMe = true
-                        userPrefs.email = email
-                        userPrefs.password = password
-                    } else {
-                        userPrefs.clear()
-                    }
+                    // Always save credentials for auto-login
+                    userPrefs.rememberMe = true
+                    userPrefs.email = email
+                    userPrefs.password = password
                 },
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Register option
+            androidx.compose.material3.TextButton(onClick = onNavigateToRegister) {
+                Text("Don't have an account? Register")
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -193,13 +199,47 @@ fun LoginScreen(
                     is ApiResult.Success -> {
                         LaunchedEffect(result) {
                             // @Thomas - BREAKPOINT HERE:: Login success detected
-                            // Route through onboarding if callback provided (new flow)
-                            // OnboardingCoordinator will check canGoOnline and redirect if complete
-                            if (onLoginSuccessWithOnboarding != null) {
-                                // Pass email from form, phone will be fetched from backend
-                                onLoginSuccessWithOnboarding(email, "")
-                            } else {
+                            // Initialize WebSocket to receive driver model
+                            webSocketViewModel.initialize()
+                            
+                            // Wait for driver state to be populated from WebSocket
+                            // The server sends driver_model_changed immediately upon connection
+                            val timeoutMs = 5000L
+                            val driver = withTimeoutOrNull(timeoutMs) {
+                                var attempts = 0
+                                while (attempts < 50) {
+                                    val currentState = webSocketViewModel.driverState.first()
+                                    if (currentState != null) {
+                                        return@withTimeoutOrNull currentState
+                                    }
+                                    delay(100)
+                                    attempts++
+                                }
+                                null
+                            }
+                            
+                            if (driver == null) {
+                                // Timeout - driver state not received
+                                // Default to onboarding flow for safety
+                                if (onLoginSuccessWithOnboarding != null) {
+                                    onLoginSuccessWithOnboarding(email, "")
+                                } else {
+                                    onLoginSuccess()
+                                }
+                                return@LaunchedEffect
+                            }
+                            
+                            // Check driver's active status
+                            if (driver.isActive) {
+                                // Driver is active - go directly to home
                                 onLoginSuccess()
+                            } else {
+                                // Driver is not active - route to onboarding
+                                if (onLoginSuccessWithOnboarding != null) {
+                                    onLoginSuccessWithOnboarding(email, driver.phone)
+                                } else {
+                                    onLoginSuccess()
+                                }
                             }
                         }
                         Text(

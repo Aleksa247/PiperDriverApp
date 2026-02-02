@@ -32,6 +32,7 @@ object NavRoutes {
     const val SETTINGS = "settings" // App settings and preferences
     const val DEBUG_MENU = "debug_menu" // Debug settings (DEBUG builds only)
     const val CHAT = "chat/{rideId}" // Chat screen for specific ride
+    const val REGISTER = "register" // Driver registration screen
 
     fun onboarding(email: String, phone: String): String = 
         "onboarding/${Uri.encode(email)}/${Uri.encode(phone)}"
@@ -74,6 +75,7 @@ fun PiperDriverNavHost(navController: NavHostController) {
         composable(NavRoutes.SPLASH) {
             SplashScreen(
                 onNavigateToLogin = actions.navigateToLogin,
+                onNavigateToHome = actions.navigateToHome,
             )
         }
 
@@ -83,6 +85,15 @@ fun PiperDriverNavHost(navController: NavHostController) {
                 onLoginSuccess = actions.navigateToHome, // For returning users, go straight home
                 onLoginSuccessWithOnboarding = actions.navigateToOnboarding, // For new users, go to onboarding
                 onNavigateToDebugMenu = if (BuildConfig.DEBUG) actions.navigateToDebugMenu else null,
+                onNavigateToRegister = actions.navigateToRegister,
+            )
+        }
+
+        // Register screen
+        composable(NavRoutes.REGISTER) {
+            com.piperrideshare.driver.ui.screens.register.RegisterScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onRegisterSuccess = actions.navigateToHome,
             )
         }
 
@@ -161,6 +172,13 @@ class NavActions(
             // Clear the entire back stack
             popUpTo(0) { inclusive = true }
         }
+    }
+
+    /**
+     * Navigate to register screen
+     */
+    val navigateToRegister: () -> Unit = {
+        navController.navigate(NavRoutes.REGISTER)
     }
 
     /**

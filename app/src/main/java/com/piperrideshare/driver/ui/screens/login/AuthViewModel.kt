@@ -72,5 +72,14 @@ class AuthViewModel
                 _isLoading.value = false
             }
         }
+
+        /**
+         * Reset login state - call this when entering the login screen after logout
+         * to prevent stale success state from triggering auto-navigation
+         */
+        fun resetLoginState() {
+            _loginResult.value = null
+            _isLoading.value = false
+        }
     }
 

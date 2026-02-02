@@ -3,6 +3,7 @@ package com.piperrideshare.driver.di
 import android.content.Context
 import com.piperrideshare.driver.BuildConfig
 import com.piperrideshare.driver.api.ApiService
+import com.piperrideshare.driver.api.AuthInterceptor
 import com.piperrideshare.driver.data.local.DebugSettingsManager
 import dagger.Module
 import dagger.Provides
@@ -35,7 +36,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor { message ->
             Timber.tag("OkHttp").d(message)
         }.apply {
@@ -47,6 +48,7 @@ object NetworkModule {
         }
 
         return OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

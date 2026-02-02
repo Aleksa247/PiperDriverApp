@@ -13,7 +13,7 @@ plugins {
     id("com.google.firebase.crashlytics")
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
     id("org.jlleitschuh.gradle.ktlint") version "13.0.0"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10"
 }
 
 val localProperties =
@@ -57,7 +57,7 @@ android {
             isMinifyEnabled = false
             isDebuggable = true
 
-            buildConfigField("String", "BASE_URL", "\"https://api.thepiper.co\"")
+            buildConfigField("String", "BASE_URL", "\"https://c42766c0e73d.ngrok-free.app\"")
             buildConfigField("String", "DEFAULT_EMAIL", "\"emma.wilson@thepiper.co\"")
             buildConfigField("String", "DEFAULT_PASSWORD", "\"Test@123\"")
         }

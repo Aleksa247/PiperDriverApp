@@ -33,8 +33,8 @@ data class RideModelChangedResponse(
     val feedback: String,
     val version: Int,
     //styamamo-edit
-    val pickupAddress: String? = null,
-    val dropoffAddress: String? = null,
+    @SerializedName("pickup_address") val pickupAddress: String? = null,
+    @SerializedName("dropoff_address") val dropoffAddress: String? = null,
 ) : WebSocketResponse()
 
 data class LatLng(

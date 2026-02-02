@@ -330,7 +330,7 @@ fun HomeScreen(
                     )
                 }
                 is BottomNavItem.Activity -> ActivityScreen()
-                is BottomNavItem.Account -> AccountScreen()
+                is BottomNavItem.Account -> AccountScreen(onLogout = ::handleLogout)
             }
         }
     }

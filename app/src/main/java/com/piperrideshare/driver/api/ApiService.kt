@@ -7,10 +7,12 @@ import com.piperrideshare.driver.api.models.request.InitiatePhoneVerificationReq
 import com.piperrideshare.driver.api.models.request.InitializeStripeRequest
 import com.piperrideshare.driver.api.models.request.LoginRequest
 import com.piperrideshare.driver.api.models.request.RefreshTokenRequest
+import com.piperrideshare.driver.api.models.request.RegisterRequest
 import com.piperrideshare.driver.api.models.response.AuthResponse
 import com.piperrideshare.driver.api.models.response.OnboardingStatusResponse
 import com.piperrideshare.driver.api.models.response.RefreshTokenResponse
 import com.piperrideshare.driver.api.models.response.StripeLinkResponse
+import com.piperrideshare.driver.api.models.response.ZonesResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -64,6 +66,15 @@ interface ApiService {
     suspend fun getStripeLink(
         @Query("return_url") returnUrl: String = "https://www.thepiper.co/driver/onboarding/success",
     ): StripeLinkResponse
+
+    // Registration
+    @POST("/api/drivers/register")
+    suspend fun register(
+        @Body request: RegisterRequest,
+    ): AuthResponse
+
+    @GET("https://piper-admin.fly.dev/api/zones")
+    suspend fun getZones(): ZonesResponse
 }
 
 
