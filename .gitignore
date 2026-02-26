@@ -78,4 +78,5 @@ ehthumbs.db
 gradle.properties
 
 .vscode
-.kotlin
+.kotlinkeystore.properties
+app/release.keystore
