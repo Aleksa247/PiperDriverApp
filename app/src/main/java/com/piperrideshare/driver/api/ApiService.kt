@@ -17,6 +17,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 interface ApiService {
     // Auth
@@ -73,8 +74,8 @@ interface ApiService {
         @Body request: RegisterRequest,
     ): AuthResponse
 
-    @GET("https://piper-admin.fly.dev/api/zones")
-    suspend fun getZones(): ZonesResponse
+    @GET
+    suspend fun getZones(@Url url: String): ZonesResponse
 }
 
 

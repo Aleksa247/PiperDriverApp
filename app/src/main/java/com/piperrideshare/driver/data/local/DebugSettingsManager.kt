@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.piperrideshare.driver.BuildConfig
+import com.piperrideshare.driver.utils.AppEnvironment
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -40,9 +41,9 @@ class DebugSettingsManager @Inject constructor(
         return if (BuildConfig.DEBUG) {
             runBlocking {
                 context.debugDataStore.data.first()[CUSTOM_BASE_URL_KEY]
-            }?.takeIf { it.isNotBlank() } ?: BuildConfig.BASE_URL
+            }?.takeIf { it.isNotBlank() } ?: AppEnvironment.current.apiBaseURL
         } else {
-            BuildConfig.BASE_URL
+            AppEnvironment.current.apiBaseURL
         }
     }
 

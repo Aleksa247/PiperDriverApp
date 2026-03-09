@@ -51,7 +51,7 @@ android {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String? ?: ""
             keyPassword = keystoreProperties["keyPassword"] as String? ?: ""
-            storeFile = file(keystoreProperties["storeFile"] as String? ?: "release.keystore")
+            storeFile = rootProject.file(keystoreProperties["storeFile"] as String? ?: "release.keystore")
             storePassword = keystoreProperties["storePassword"] as String? ?: ""
         }
     }
@@ -73,7 +73,7 @@ android {
             isMinifyEnabled = false
             isDebuggable = true
 
-            buildConfigField("String", "BASE_URL", "\"https://c42766c0e73d.ngrok-free.app\"")
+            buildConfigField("String", "BASE_URL", "\"https://piper-main-app-staging.fly.dev\"")
             buildConfigField("String", "DEFAULT_EMAIL", "\"emma.wilson@thepiper.co\"")
             buildConfigField("String", "DEFAULT_PASSWORD", "\"Test@123\"")
         }

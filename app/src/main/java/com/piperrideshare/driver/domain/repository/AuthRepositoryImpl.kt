@@ -2,6 +2,7 @@ package com.piperrideshare.driver.repository
 
 import com.piperrideshare.driver.api.ApiService
 import com.piperrideshare.driver.api.models.request.LoginRequest
+import com.piperrideshare.driver.utils.AppEnvironment
 import com.piperrideshare.driver.api.models.request.RefreshTokenRequest
 import com.piperrideshare.driver.api.models.request.RegisterRequest
 import com.piperrideshare.driver.api.models.response.AuthResponse
@@ -33,7 +34,7 @@ class AuthRepositoryImpl
 
         override suspend fun getZones(): ApiResult<ZonesResponse> =
             safeApiCall {
-                api.getZones()
+                api.getZones(AppEnvironment.current.adminServiceURL + "/api/zones")
             }
 
         override suspend fun refreshToken(refreshToken: String): ApiResult<RefreshTokenResponse> =
