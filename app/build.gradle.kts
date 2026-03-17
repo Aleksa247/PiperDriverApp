@@ -82,22 +82,16 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-
-
     buildFeatures {
         compose = true
         buildConfig = true
     }
-
-
 
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-
-
 }
 
 dependencies {
@@ -116,9 +110,9 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.2")
 
     // Hilt
-    implementation("com.google.dagger:hilt-android:2.57")
+    implementation("com.google.dagger:hilt-android:2.59.2")
     implementation("androidx.lifecycle:lifecycle-process:2.9.2")
-    ksp("com.google.dagger:hilt-android-compiler:2.57")
+    ksp("com.google.dagger:hilt-android-compiler:2.59.2")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Retrofit & OkHttp
@@ -182,8 +176,6 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
-
-
 
 // Hilt configuration
 hilt {
