@@ -13,7 +13,7 @@ plugins {
     id("com.google.firebase.crashlytics")
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
     id("org.jlleitschuh.gradle.ktlint") version "13.0.0"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10"
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 val localProperties =
