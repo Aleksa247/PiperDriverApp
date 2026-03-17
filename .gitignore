@@ -76,7 +76,7 @@ gen-external-apklibs
 # Windows
 Thumbs.db
 ehthumbs.db
-gradle.properties
+# gradle.properties
 
 .vscode
 .kotlinkeystore.properties
