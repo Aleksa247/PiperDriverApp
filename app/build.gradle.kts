@@ -4,8 +4,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.kapt")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.serialization")
@@ -84,18 +82,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        jvmToolchain(17)
-    }
+
 
     buildFeatures {
         compose = true
         buildConfig = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "2.2.0"
-    }
+
 
     packaging {
         resources {
@@ -103,9 +97,7 @@ android {
         }
     }
 
-    kotlinOptions {
-        freeCompilerArgs = listOf("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
-    }
+
 }
 
 dependencies {
@@ -126,7 +118,7 @@ dependencies {
     // Hilt
     implementation("com.google.dagger:hilt-android:2.57")
     implementation("androidx.lifecycle:lifecycle-process:2.9.2")
-    kapt("com.google.dagger:hilt-android-compiler:2.57")
+    ksp("com.google.dagger:hilt-android-compiler:2.57")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Retrofit & OkHttp
@@ -191,10 +183,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
-// Allow references to generated code
-kapt {
-    correctErrorTypes = true
-}
+
 
 // Hilt configuration
 hilt {
