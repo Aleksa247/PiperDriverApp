@@ -1,10 +1,14 @@
 package com.piperrideshare.driver.di
 
+import android.content.Context
 import com.piperrideshare.driver.BuildConfig
 import com.piperrideshare.driver.api.ApiService
+import com.piperrideshare.driver.api.AuthInterceptor
+import com.piperrideshare.driver.data.local.DebugSettingsManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -18,16 +22,21 @@ import javax.inject.Singleton
  * NetworkModule - Dependency injection configuration for network services
  *
  * Provides Retrofit and API service instances for HTTP communication.
- * The base URL is configured via BuildConfig.BASE_URL which should be
- * set in the build configuration for different environments.
- *
+ * In DEBUG builds, the base URL can be overridden via DebugSettingsManager.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideDebugSettingsManager(
+        @ApplicationContext context: Context
+    ): DebugSettingsManager = DebugSettingsManager(context)
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor { message ->
             Timber.tag("OkHttp").d(message)
         }.apply {
@@ -39,6 +48,7 @@ object NetworkModule {
         }
 
         return OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
@@ -48,13 +58,19 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit =
-        Retrofit
+    fun provideRetrofit(
+        okHttpClient: OkHttpClient,
+        debugSettingsManager: DebugSettingsManager
+    ): Retrofit {
+        val baseUrl = debugSettingsManager.getEffectiveBaseUrl()
+        Timber.d("🌐 Using base URL: $baseUrl")
+        return Retrofit
             .Builder()
-            .baseUrl(BuildConfig.BASE_URL)
+            .baseUrl(baseUrl)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+    }
 
     @Provides
     @Singleton

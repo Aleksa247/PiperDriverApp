@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.piperrideshare.driver.R
 import com.piperrideshare.driver.ui.components.XmlDrawableImage
 import com.piperrideshare.driver.utils.PermissionHandler
@@ -19,8 +20,14 @@ import kotlinx.coroutines.delay
 import timber.log.Timber
 
 @Composable
-fun SplashScreen(onNavigateToLogin: () -> Unit) {
+fun SplashScreen(
+    onNavigateToLogin: () -> Unit,
+    onNavigateToHome: () -> Unit,
+    viewModel: SplashViewModel = hiltViewModel()
+) {
     val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsState()
+    
     var permissionsRequested by remember { mutableStateOf(false) }
     var permissionsGranted by remember { mutableStateOf(false) }
     var showPermissionDeniedMessage by remember { mutableStateOf(false) }
@@ -33,11 +40,31 @@ fun SplashScreen(onNavigateToLogin: () -> Unit) {
             }
         }
     }
+
+    // Effect to check session once permissions are granted
     LaunchedEffect(key1 = permissionsGranted) {
         if (permissionsGranted) {
-            Timber.d("✅ PERMISSIONS: All permissions granted, proceeding to login")
-            delay(1000) // Brief delay to show success state
-            onNavigateToLogin()
+            Timber.d("✅ PERMISSIONS: All permissions granted, checking session")
+            viewModel.checkSession()
+        }
+    }
+
+    // Effect to handle navigation based on view model state
+    LaunchedEffect(key1 = uiState) {
+        if (permissionsGranted) {
+             when(uiState) {
+                is SplashState.NavigateToHome -> {
+                     Timber.d("🚀 SESSION: Valid session found, navigating to HOME")
+                     delay(500)
+                     onNavigateToHome()
+                }
+                is SplashState.NavigateToLogin -> {
+                     Timber.d("🔒 SESSION: No valid session, navigating to LOGIN")
+                     delay(500)
+                     onNavigateToLogin()
+                }
+                else -> { /* Loading */ }
+            }
         }
     }
 
@@ -46,6 +73,7 @@ fun SplashScreen(onNavigateToLogin: () -> Unit) {
         delay(1500)
         permissionsRequested = true
     }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
@@ -105,7 +133,9 @@ fun SplashScreen(onNavigateToLogin: () -> Unit) {
                             Button(
                                 onClick = {
                                     Timber.d("🔄 PERMISSIONS: User chose to continue without permissions")
-                                    onNavigateToLogin()
+                                    // Manually trigger session check since permissionsGranted won't flip to true
+                                    viewModel.checkSession()
+                                    permissionsGranted = true 
                                 }
                             ) {
                                 Text("Continue Anyway")
@@ -122,10 +152,19 @@ fun SplashScreen(onNavigateToLogin: () -> Unit) {
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
+                
+                permissionsGranted && uiState is SplashState.Loading -> {
+                     CircularProgressIndicator()
+                     Spacer(modifier = Modifier.height(16.dp))
+                     Text(
+                        text = "Checking session...",
+                        style = MaterialTheme.typography.bodyMedium,
+                     )
+                }
 
                 permissionsGranted -> {
                     Text(
-                        text = "✅ Permissions granted!",
+                        text = "✅ Ready!",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )

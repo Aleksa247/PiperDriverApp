@@ -22,6 +22,8 @@ import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.piperrideshare.driver.utils.LocationTracker
+import com.piperrideshare.driver.api.models.request.GetChatHistoryRequest
+import com.piperrideshare.driver.api.models.request.SendChatMessageRequest
 import timber.log.Timber
 
 @Singleton
@@ -130,7 +132,25 @@ class WebSocketRepository
             sendRequest(GetProfileRequest(requestId))
         }
 
+
         override fun sendGetEarnings(requestId: String, timeFrame: String) {
             sendRequest(GetEarningsRequest(requestId, timeFrame))
+        }
+
+        override fun sendGetChatHistory(requestId: String, rideId: String) {
+            sendRequest(
+                GetChatHistoryRequest(
+                    requestId,
+                    GetChatHistoryRequest.ChatHistoryPayload(rideId)
+                )
+            )
+        }
+
+        override fun sendChatMessage(rideId: String, message: String) {
+            sendRequest(
+                SendChatMessageRequest(
+                    SendChatMessageRequest.ChatMessagePayload(rideId, message)
+                )
+            )
         }
     }

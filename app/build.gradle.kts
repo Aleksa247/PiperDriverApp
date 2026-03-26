@@ -4,16 +4,14 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
-    id("kotlinx-serialization")
+    id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
     id("org.jlleitschuh.gradle.ktlint") version "13.0.0"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 val localProperties =
@@ -41,9 +39,25 @@ android {
         resValue("string", "mapbox_access_token", "\"$mapboxToken\"")
     }
 
+    val keystorePropertiesFile = rootProject.file("keystore.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(keystorePropertiesFile.inputStream())
+    }
+
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String? ?: ""
+            keyPassword = keystoreProperties["keyPassword"] as String? ?: ""
+            storeFile = rootProject.file(keystoreProperties["storeFile"] as String? ?: "release.keystore")
+            storePassword = keystoreProperties["storePassword"] as String? ?: ""
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -57,7 +71,7 @@ android {
             isMinifyEnabled = false
             isDebuggable = true
 
-            buildConfigField("String", "BASE_URL", "\"https://api.thepiper.co\"")
+            buildConfigField("String", "BASE_URL", "\"https://piper-main-app-staging.fly.dev\"")
             buildConfigField("String", "DEFAULT_EMAIL", "\"emma.wilson@thepiper.co\"")
             buildConfigField("String", "DEFAULT_PASSWORD", "\"Test@123\"")
         }
@@ -68,27 +82,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        jvmToolchain(17)
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "2.2.0"
     }
 
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
-    }
-
-    kotlinOptions {
-        freeCompilerArgs = listOf("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
     }
 }
 
@@ -108,9 +110,9 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.2")
 
     // Hilt
-    implementation("com.google.dagger:hilt-android:2.57")
+    implementation("com.google.dagger:hilt-android:2.59.2")
     implementation("androidx.lifecycle:lifecycle-process:2.9.2")
-    kapt("com.google.dagger:hilt-android-compiler:2.57")
+    ksp("com.google.dagger:hilt-android-compiler:2.59.2")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Retrofit & OkHttp
@@ -173,11 +175,6 @@ dependencies {
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-}
-
-// Allow references to generated code
-kapt {
-    correctErrorTypes = true
 }
 
 // Hilt configuration

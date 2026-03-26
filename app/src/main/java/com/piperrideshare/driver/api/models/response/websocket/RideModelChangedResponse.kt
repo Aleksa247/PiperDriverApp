@@ -19,6 +19,8 @@ data class RideModelChangedResponse(
     @SerializedName("estimated_fare") val estimatedFare: Int,
     @SerializedName("driver_earning") val driverEarning: Int,
     @SerializedName("actual_fare") val actualFare: Int,
+    @SerializedName("subtotal") val subtotal: Int? = null,
+    @SerializedName("driver_cut_percent") val driverCutPercent: Double? = null,
     @SerializedName("wait_time_fee") val waitTimeFee: Int,
     @SerializedName("driver_wait_timer_end") val driverWaitTimerEnd: String?,
     val distance: Double,
@@ -33,8 +35,8 @@ data class RideModelChangedResponse(
     val feedback: String,
     val version: Int,
     //styamamo-edit
-    val pickupAddress: String? = null,
-    val dropoffAddress: String? = null,
+    @SerializedName("pickup_address") val pickupAddress: String? = null,
+    @SerializedName("dropoff_address") val dropoffAddress: String? = null,
 ) : WebSocketResponse()
 
 data class LatLng(

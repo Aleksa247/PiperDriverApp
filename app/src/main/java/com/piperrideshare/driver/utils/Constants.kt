@@ -13,6 +13,8 @@ object Constants {
     const val CHANNEL_ID = "location_service_channel"
 
     val TOKEN_KEY = stringPreferencesKey("token")
+    val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
+    val EXPIRES_AT_KEY = stringPreferencesKey("expires_at") // ISO timestamp when token expires
     val USER_ID_KEY = stringPreferencesKey("user_id")
     val NAME_KEY = stringPreferencesKey("name")
     val FCM_TOKEN_KEY = stringPreferencesKey("fcm_token_key")
