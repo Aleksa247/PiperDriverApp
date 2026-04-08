@@ -12,6 +12,8 @@ import com.piperrideshare.driver.ui.screens.login.LoginScreen
 import com.piperrideshare.driver.ui.screens.onboarding.OnboardingCoordinator
 import com.piperrideshare.driver.ui.screens.splash.SplashScreen
 import com.piperrideshare.driver.ui.screens.chat.ChatScreen
+import com.piperrideshare.driver.ui.screens.settings.SettingsScreen
+import com.piperrideshare.driver.ui.screens.settings.NotificationsScreen
 
 /**
  * Navigation Routes - Centralized route definitions for the driver app
@@ -33,6 +35,8 @@ object NavRoutes {
     const val DEBUG_MENU = "debug_menu" // Debug settings (DEBUG builds only)
     const val CHAT = "chat/{rideId}" // Chat screen for specific ride
     const val REGISTER = "register" // Driver registration screen
+    const val SUPPORT = "support" // Support and help screen
+    const val NOTIFICATIONS = "notifications" // Notification preferences
 
     fun onboarding(email: String, phone: String): String = 
         "onboarding/${Uri.encode(email)}/${Uri.encode(phone)}"
@@ -125,6 +129,30 @@ fun PiperDriverNavHost(navController: NavHostController) {
                 onNavigateToRideDetail = actions.navigateToRideDetail,
                 onLogout = actions.navigateToLoginAfterLogout,
                 onNavigateToChat = actions.navigateToChat,
+                onNavigateToSettings = actions.navigateToSettings,
+            )
+        }
+        
+        // Settings screen
+        composable(NavRoutes.SETTINGS) {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onLogout = actions.navigateToLoginAfterLogout,
+                onNavigateToNotifications = actions.navigateToNotifications,
+                onNavigateToSupport = actions.navigateToSupport
+            )
+        }
+
+        // Support Screen (Placeholder)
+        composable(NavRoutes.SUPPORT) {
+            // TODO: Create actual SupportScreen
+            androidx.compose.material3.Text("Support Screen Placeholder")
+        }
+
+        // Notifications Screen
+        composable(NavRoutes.NOTIFICATIONS) {
+            NotificationsScreen(
+                onBack = { navController.popBackStack() }
             )
         }
         
@@ -235,5 +263,25 @@ class NavActions(
     val navigateToChat: (String) -> Unit = { rideId ->
         navController.navigate(NavRoutes.chat(rideId))
     }
-}
 
+    /**
+     * Navigate to settings screen
+     */
+    val navigateToSettings: () -> Unit = {
+        navController.navigate(NavRoutes.SETTINGS)
+    }
+
+    /**
+     * Navigate to support screen
+     */
+    val navigateToSupport: () -> Unit = {
+        navController.navigate(NavRoutes.SUPPORT)
+    }
+
+    /**
+     * Navigate to notifications screen
+     */
+    val navigateToNotifications: () -> Unit = {
+        navController.navigate(NavRoutes.NOTIFICATIONS)
+    }
+}

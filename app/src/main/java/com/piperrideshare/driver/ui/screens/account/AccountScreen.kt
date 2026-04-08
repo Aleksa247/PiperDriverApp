@@ -61,6 +61,7 @@ import com.piperrideshare.driver.ui.viewModel.WebSocketViewModel
 @Composable
 fun AccountScreen(
     onLogout: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     viewModel: WebSocketViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -133,7 +134,10 @@ fun AccountScreen(
         DriverStatusSection(driverState = driverState)
 
         // Settings / Actions Section
-        SettingsSection(onLogout = onLogout)
+        SettingsSection(
+            onLogout = onLogout,
+            onNavigateToSettings = onNavigateToSettings
+        )
         
         Spacer(modifier = Modifier.height(24.dp))
     }
@@ -373,7 +377,10 @@ private fun DriverStatusSection(
 }
 
 @Composable
-private fun SettingsSection(onLogout: () -> Unit) {
+private fun SettingsSection(
+    onLogout: () -> Unit,
+    onNavigateToSettings: () -> Unit
+) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -390,7 +397,7 @@ private fun SettingsSection(onLogout: () -> Unit) {
         SettingsItem(
             icon = Icons.Default.Settings,
             title = "Settings",
-            onClick = { /* TODO */ }
+            onClick = onNavigateToSettings
         )
         
         Spacer(modifier = Modifier.height(8.dp))

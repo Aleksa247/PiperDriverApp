@@ -101,6 +101,14 @@ constructor(
     // NEW STATE FOR TASK 2.1
     // ==============================================
     
+    // UI Navigation State
+    private val _selectedTab = MutableStateFlow("Home")
+    val selectedTab = _selectedTab.asStateFlow()
+
+    fun setSelectedTab(tab: String) {
+        _selectedTab.value = tab
+    }
+
     // Chat state
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val chatMessages = _chatMessages.asStateFlow()

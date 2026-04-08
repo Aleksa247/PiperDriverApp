@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +52,7 @@ sealed class BottomNavItem(val label: String, val icon: ImageVector) {
 fun HomeScreen(
     onNavigateToRideDetail: (String) -> Unit,
     onNavigateToChat: (String) -> Unit,
+    onNavigateToSettings: () -> Unit,
     onLogout: () -> Unit,
     viewModel: WebSocketViewModel = hiltViewModel(),
 ) {
@@ -92,7 +94,16 @@ fun HomeScreen(
     var currentRideRequest by remember { mutableStateOf<RideRequestedResponse?>(null) }
     var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
     var lastZoneName by remember { mutableStateOf<String?>(null) }
-    var selectedTab by remember { mutableStateOf<BottomNavItem>(BottomNavItem.Home) }
+    
+    // Persistent tab selection state
+    var selectedTabLabel by rememberSaveable { mutableStateOf("Home") }
+    val selectedTab = remember(selectedTabLabel) {
+        when (selectedTabLabel) {
+            "Activity" -> BottomNavItem.Activity
+            "Account" -> BottomNavItem.Account
+            else -> BottomNavItem.Home
+        }
+    }
 
     // ==============================================
     // INITIALIZATION
@@ -270,7 +281,7 @@ fun HomeScreen(
                 listOf(BottomNavItem.Home, BottomNavItem.Activity, BottomNavItem.Account).forEach { item ->
                     NavigationBarItem(
                         selected = selectedTab == item,
-                        onClick = { selectedTab = item },
+                        onClick = { selectedTabLabel = item.label },
                         icon = {
                             Icon(
                                 imageVector = item.icon,
@@ -330,7 +341,10 @@ fun HomeScreen(
                     )
                 }
                 is BottomNavItem.Activity -> ActivityScreen()
-                is BottomNavItem.Account -> AccountScreen(onLogout = ::handleLogout)
+                is BottomNavItem.Account -> AccountScreen(
+                    onLogout = ::handleLogout,
+                    onNavigateToSettings = onNavigateToSettings
+                )
             }
         }
     }
