@@ -2,6 +2,8 @@ package com.piperrideshare.driver.di
 
 import com.piperrideshare.driver.domain.repository.AuthRepository
 import com.piperrideshare.driver.domain.repository.WebSocketRepository
+import com.piperrideshare.driver.domain.repository.ZendeskRepository
+import com.piperrideshare.driver.domain.repository.ZendeskRepositoryImpl
 import com.piperrideshare.driver.repository.AuthRepositoryImpl
 import com.piperrideshare.driver.services.IWebSocketRepository
 import android.content.Context
@@ -25,6 +27,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindWebSocketRepository(impl: WebSocketRepository): IWebSocketRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindZendeskRepository(impl: ZendeskRepositoryImpl): ZendeskRepository
 }
 
 @Module
@@ -42,4 +48,3 @@ object RepositoryProvidesModule {
         @ApplicationContext context: Context
     ): LocationTracker = LocationTracker(context)
 }
-

@@ -14,6 +14,8 @@ import com.piperrideshare.driver.ui.screens.splash.SplashScreen
 import com.piperrideshare.driver.ui.screens.chat.ChatScreen
 import com.piperrideshare.driver.ui.screens.settings.SettingsScreen
 import com.piperrideshare.driver.ui.screens.settings.NotificationsScreen
+import com.piperrideshare.driver.ui.screens.settings.SupportScreen
+import com.piperrideshare.driver.ui.screens.settings.SupportChatScreen
 
 /**
  * Navigation Routes - Centralized route definitions for the driver app
@@ -36,6 +38,7 @@ object NavRoutes {
     const val CHAT = "chat/{rideId}" // Chat screen for specific ride
     const val REGISTER = "register" // Driver registration screen
     const val SUPPORT = "support" // Support and help screen
+    const val SUPPORT_CHAT = "support_chat" // Support chat/ticket form screen
     const val NOTIFICATIONS = "notifications" // Notification preferences
 
     fun onboarding(email: String, phone: String): String = 
@@ -143,10 +146,19 @@ fun PiperDriverNavHost(navController: NavHostController) {
             )
         }
 
-        // Support Screen (Placeholder)
+        // Support Screen
         composable(NavRoutes.SUPPORT) {
-            // TODO: Create actual SupportScreen
-            androidx.compose.material3.Text("Support Screen Placeholder")
+            SupportScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToChat = actions.navigateToSupportChat
+            )
+        }
+
+        // Support Chat / Message Form
+        composable(NavRoutes.SUPPORT_CHAT) {
+            SupportChatScreen(
+                onBack = { navController.popBackStack() }
+            )
         }
 
         // Notifications Screen
@@ -276,6 +288,13 @@ class NavActions(
      */
     val navigateToSupport: () -> Unit = {
         navController.navigate(NavRoutes.SUPPORT)
+    }
+
+    /**
+     * Navigate to support chat screen
+     */
+    val navigateToSupportChat: () -> Unit = {
+        navController.navigate(NavRoutes.SUPPORT_CHAT)
     }
 
     /**

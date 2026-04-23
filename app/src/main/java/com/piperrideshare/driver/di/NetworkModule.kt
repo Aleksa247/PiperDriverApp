@@ -4,6 +4,7 @@ import android.content.Context
 import com.piperrideshare.driver.BuildConfig
 import com.piperrideshare.driver.api.ApiService
 import com.piperrideshare.driver.api.AuthInterceptor
+import com.piperrideshare.driver.api.ZendeskApiService
 import com.piperrideshare.driver.data.local.DebugSettingsManager
 import dagger.Module
 import dagger.Provides
@@ -16,6 +17,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -75,4 +77,32 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideApiService(retrofit: Retrofit): ApiService = retrofit.create(ApiService::class.java)
+
+    @Provides
+    @Singleton
+    @Named("ZendeskRetrofit")
+    fun provideZendeskRetrofit(): Retrofit {
+        val loggingInterceptor = HttpLoggingInterceptor { message ->
+            Timber.tag("ZendeskOkHttp").d(message)
+        }.apply {
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
+        }
+
+        val client = OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl("") //Base url here <--
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideZendeskApiService(@Named("ZendeskRetrofit") retrofit: Retrofit): ZendeskApiService = 
+        retrofit.create(ZendeskApiService::class.java)
 }
